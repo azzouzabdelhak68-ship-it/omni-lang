@@ -27,6 +27,29 @@ def _compile(file: Path):
     return ast, symbol_table, mir
 
 
+def _reject_omnisys_on_native_target(target: str, mir) -> None:
+    """§8.3 per-back-end capability check: OMNISYS is provided by the JS lane."""
+    if not mir.imports:
+        return
+    click.echo(json.dumps(_diagnostic_from_exception(
+        DiagnosticError(
+            "E-BACKEND-001", "backend", "error",
+            "OMNISYS modules require the JS lane.",
+            f"'{target}' does not provide the OMNISYS runtime. The JS lane is the reference OMNISYS back-end (spec §17.10.E/§17.10.R).",
+            1, 1, 0, 0,
+            {"target": target, "imports": mir.imports},
+            [{
+                "id": "target-js",
+                "kind": "replace_span",
+                "applicability": "automatic",
+                "description": "Build with --target js, the OMNISYS reference back-end.",
+                "edit": {"operation": "replace", "span": {"start": 0, "end": 0}, "text": "--target js"}
+            }]
+        )
+    ), indent=2))
+    sys.exit(1)
+
+
 def _diagnostic_from_exception(e: Exception) -> dict:
     if isinstance(e, DiagnosticError):
         return e.to_dict()
@@ -195,9 +218,11 @@ def build(file: Path, target: str, output: Path | None):
         content = emit_js(mir)
         out = output or file.with_suffix(".html")
     elif target == "c":
+        _reject_omnisys_on_native_target(target, mir)
         content = emit_c(mir)
         out = output or file.with_suffix(".c")
     elif target == "rust":
+        _reject_omnisys_on_native_target(target, mir)
         try:
             from omni_compiler.rust_emitter import emit_rust  # noqa: PLC0415 - optional peer module
 
@@ -210,6 +235,7 @@ def build(file: Path, target: str, output: Path | None):
             sys.exit(1)
         out = output or file.with_suffix(".rs")
     elif target in ("wasm-browser", "wasm-wasi"):
+        _reject_omnisys_on_native_target(target, mir)
         mode = "browser" if target == "wasm-browser" else "wasi"
         content = emit_wasm(mir, mode=mode)
         default_out = file.with_suffix(".html" if mode == "browser" else ".c")

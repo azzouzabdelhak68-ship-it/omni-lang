@@ -38,6 +38,7 @@ class TokenType(Enum):
     IN = "in"
     BREAK = "break"
     CONTINUE = "continue"
+    IMPORT = "import"
 
     # 3D scene shape keywords
     BOX = "box"
@@ -96,6 +97,7 @@ keyword_map = {
     "in": TokenType.IN,
     "break": TokenType.BREAK,
     "continue": TokenType.CONTINUE,
+    "import": TokenType.IMPORT,
     "true": TokenType.TRUE,
     "false": TokenType.FALSE,
     "none": TokenType.NONE,

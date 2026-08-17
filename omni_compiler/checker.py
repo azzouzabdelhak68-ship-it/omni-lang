@@ -12,6 +12,7 @@ from omni_compiler.parser import (
     FunctionDef,
     Identifier,
     IfBlock,
+    ImportDecl,
     ListLiteral,
     Literal,
     Program,
@@ -22,6 +23,14 @@ from omni_compiler.parser import (
     Slot,
     StructConstruct,
     TypeDecl,
+)
+
+from omni_compiler.omnisys_registry import (
+    is_omnisys_call,
+    module_name_of,
+    module_names,
+    omnisys_effects,
+    resolve_import,
 )
 
 BUILTIN_CAPABILITIES = {
@@ -130,10 +139,13 @@ class SemanticAnalyzer:
         self.symbol_table = SymbolTable()
         self.loop_depth = 0
         self.custom_types: dict[str, dict[str, str]] = {}
+        self.imported_modules: set[str] = set()
 
     def analyze(self, prog: Program) -> SymbolTable:
         for name, info in BUILTIN_FUNCTIONS.items():
             self.symbol_table.define(name, dict(info))
+        for imp in prog.imports:
+            self.validate_import(imp)
         for td in prog.types:
             self.analyze_type_decl(td)
         for fn in prog.functions:
@@ -162,6 +174,42 @@ class SemanticAnalyzer:
             self.analyze_scene_block(prog.scene_block)
 
         return self.symbol_table
+
+    def validate_import(self, imp: ImportDecl):
+        if not imp.path:
+            return
+        if imp.path[0] != "OMNISYS":
+            raise DiagnosticError(
+                "E-IMPORT-001", "import", "error",
+                f"Unknown import root '{imp.path[0]}'.",
+                "Only the OMNISYS platform root may be imported: 'import OMNISYS' or 'import OMNISYS.<module>'.",
+                1, 1, 0, 0,
+                {"root": imp.path[0]},
+                [{
+                    "id": "use-omnisys",
+                    "kind": "replace_span",
+                    "applicability": "automatic",
+                    "description": "Replace the import root with 'OMNISYS'.",
+                    "edit": {"operation": "replace", "span": {"start": 0, "end": 0}, "text": "import OMNISYS"}
+                }]
+            )
+        resolved = resolve_import(tuple(imp.path))
+        if resolved is None:
+            raise DiagnosticError(
+                "E-IMPORT-002", "import", "error",
+                f"Unknown OMNISYS module '{'.'.join(imp.path)}'.",
+                f"The OMNISYS module tree is: {', '.join(sorted(module_names()))}. 'import OMNISYS' alone imports the implicit core root.",
+                1, 1, 0, 0,
+                {"module": ".".join(imp.path)},
+                [{
+                    "id": "use-known-module",
+                    "kind": "replace_span",
+                    "applicability": "automatic",
+                    "description": "Use a module from the OMNISYS tree.",
+                    "edit": {"operation": "replace", "span": {"start": 0, "end": 0}, "text": "import OMNISYS.core"}
+                }]
+            )
+        self.imported_modules.add(module_name_of(resolved.js_file))
 
     def analyze_type_decl(self, td: TypeDecl):
         self.custom_types[td.name] = td.fields
@@ -375,6 +423,25 @@ class SemanticAnalyzer:
     def check_identifier(self, name: str):
         if name in BUILTIN_CAPABILITIES or name in BUILTIN_FUNCTIONS or name.startswith("sim."):
             return
+        if is_omnisys_call(name):
+            parts = name.split(".")
+            module = parts[1]
+            if module not in self.imported_modules:
+                raise DiagnosticError(
+                    "E-IMPORT-003", "import", "error",
+                    f"OMNISYS module '{module}' used without being imported.",
+                    f"Add 'import OMNISYS.{module}' before using 'omnisys.{module}.*'.",
+                    1, 1, 0, 0,
+                    {"module": module, "call": name},
+                    [{
+                        "id": "import-module",
+                        "kind": "add_declaration",
+                        "applicability": "automatic",
+                        "description": f"Import OMNISYS.{module}.",
+                        "edit": {"operation": "insert", "span": {"start": 0, "end": 0}, "text": f"import OMNISYS.{module}\n"}
+                    }]
+                )
+            return
         if not self.symbol_table.lookup(name):
             raise NameError(f"Undefined variable or function '{name}'")
 
@@ -534,6 +601,9 @@ class SemanticAnalyzer:
         if cap:
             if not app_scope or self.symbol_table.lookup(call.name) is None:
                 uses.add(cap)
+        omnisys_uses = omnisys_effects(call.name)
+        if omnisys_uses:
+            uses.update(omnisys_uses)
         if inherit:
             sym = self.symbol_table.lookup(call.name)
             if sym and sym.get("kind") == "function":

@@ -26,6 +26,12 @@ class Program(ASTNode):
     ui_template: str | None = None
     scene_block: SceneBlock | None = None
     types: list["TypeDecl"] = field(default_factory=list)
+    imports: list["ImportDecl"] = field(default_factory=list)
+
+@dataclass
+class ImportDecl(ASTNode):
+    kind: str = "import_decl"
+    path: list[str] = field(default_factory=list)
 
 @dataclass
 class TypeDecl(ASTNode):
@@ -138,6 +144,18 @@ class FunctionCall(ASTNode):
     name: str = ""
     args: list[Any] = field(default_factory=list)
 
+
+def dotted_name(expr: Any) -> str | None:
+    """Flatten a field-access chain into a dotted name, or None."""
+    if isinstance(expr, Identifier):
+        return expr.name
+    if isinstance(expr, FieldAccess):
+        base = dotted_name(expr.object)
+        if base is None:
+            return None
+        return f"{base}.{expr.field}"
+    return None
+
 class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
@@ -193,6 +211,11 @@ class Parser:
             # Check for type declaration
             if token.type == TokenType.TYPE:
                 prog.types.append(self.parse_type_decl())
+                continue
+
+            # Check for import declaration
+            if token.type == TokenType.IMPORT:
+                prog.imports.append(self.parse_import())
                 continue
             
             # Check for when app starts:
@@ -263,9 +286,12 @@ class Parser:
                     key = "reads"
                 else:
                     key = "writes"
+                clause_line = self.peek().line
                 while self.match(TokenType.IDENTIFIER):
                     nxt = self.tokens[self.pos + 1] if self.pos + 1 < len(self.tokens) else None
                     if nxt and nxt.type == TokenType.ASSIGN:
+                        break
+                    if self.peek().line != clause_line:
                         break
                     effects[key].append(self.consume(TokenType.IDENTIFIER).value)
             elif t.type == TokenType.PURE:
@@ -310,6 +336,14 @@ class Parser:
                 return Assignment(name=name, expr=expr)
             return self.parse_expression()
         return self.parse_expression()
+
+    def parse_import(self) -> ImportDecl:
+        self.consume(TokenType.IMPORT)
+        path = [self.consume(TokenType.IDENTIFIER).value]
+        while self.match(TokenType.DOT):
+            self.consume(TokenType.DOT)
+            path.append(self.consume(TokenType.IDENTIFIER).value)
+        return ImportDecl(path=path)
 
     def parse_type_decl(self) -> TypeDecl:
         self.consume(TokenType.TYPE)
@@ -484,12 +518,7 @@ class Parser:
                     expr = FieldAccess(object=expr, field=field)
                 elif self.match(TokenType.LPAREN):
                     self.consume(TokenType.LPAREN)
-                    if isinstance(expr, Identifier):
-                        target_name = expr.name
-                    elif isinstance(expr, FieldAccess) and isinstance(expr.object, Identifier):
-                        target_name = f"{expr.object.name}.{expr.field}"
-                    else:
-                        target_name = str(expr)
+                    target_name = dotted_name(expr) or str(expr)
                     if self.match(TokenType.RPAREN):
                         self.consume(TokenType.RPAREN)
                         expr = FunctionCall(name=target_name, args=[])

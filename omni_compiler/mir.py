@@ -60,11 +60,13 @@ class MIRModule:
     ui_template: str | None = None
     scene: list[dict[str, Any]] = field(default_factory=list)
     types: dict[str, dict[str, str]] = field(default_factory=dict)
+    imports: list[list[str]] = field(default_factory=list)
 
     def to_json(self) -> str:
         return json.dumps({
             "schema": self.schema,
             "version": self.version,
+            "imports": self.imports,
             "functions": {
                 name: {
                     "name": fn.name,
@@ -115,6 +117,7 @@ class MIRModule:
         module.ui_template = data.get("ui_template")
         module.scene = list(data.get("scene", []))
         module.types = dict(data.get("types", {}))
+        module.imports = [list(p) for p in data.get("imports", [])]
         return module
 
 
@@ -243,5 +246,6 @@ def to_mir(ast: Any, symbol_table: Any = None) -> MIRModule:
         module.scene = _scene_to_mir(ast.scene_block)
     for td in ast.types:
         module.types[td.name] = {"fields": dict(td.fields)}
+    module.imports = [list(imp.path) for imp in ast.imports]
 
     return module

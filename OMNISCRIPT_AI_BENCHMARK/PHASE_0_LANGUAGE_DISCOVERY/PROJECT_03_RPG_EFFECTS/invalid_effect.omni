@@ -1,6 +1,6 @@
 fn save_player(name: Text) -> Text:
     pure
-    writes save_file
+    result = write_file("save/{name}.dat", "hero")
     return "Saved {name}"
 end
 

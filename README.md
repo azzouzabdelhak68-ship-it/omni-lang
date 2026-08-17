@@ -4,7 +4,7 @@
 
 **The AI-First Programming Language**
 
-*One `.omni` file is a complete app. Powered by a single robust specification, compiled through an intermediate representation (OMNI MIR) to four optimized targets.*
+*One `.omni` file is a complete app. Defined by a single specification, checked by a rigorous front-end, compiled through OMNI MIR to multiple targets.*
 
 [Explore Spec](OMNI_SPEC.md) • [Our Story](OMNI_HISTORY.md) • [Browse Docs](docs/INDEX.md)
 
@@ -19,9 +19,24 @@
 
 ---
 
+## 📍 Status
+
+| | |
+|---|---|
+| **Language core (v1–v4)** | ✅ **Complete** — parser, type checker, checked effects, OMNI MIR, diagnostics |
+| **Native + WASM lanes (v3)** | ✅ **Complete** — C99 & Rust emitters, WASM targets, Flecs/Bevy adapters |
+| **SMT + AI tooling (v4)** | ✅ **Complete** — Z3 contract verification, LSP server, `suggest`/`generate`/`trace` |
+| **Self-hosting, visual editor, distributed (v5)** | ✅ **Complete** — 296 tests passing, 90.48% branch coverage |
+| **OMNISYS platform (v6)** | 🚧 **In progress** — docs layer complete; module implementations under development |
+| **Ecosystem benchmark (v7)** | 📋 Planned |
+
+*Test suite: **296 passed, 3 skipped** (skips need gcc/cargo). Coverage gate **90.48% ≥ 90%**.*
+
+---
+
 ## 🎨 Unified Architecture
 
-OmniScript uses **one front-end, one middle representation (OMNI MIR), and four target lanes**. This unique architecture ensures code behavior is 100% consistent across every engine.
+OmniScript uses **one front-end, one middle representation (OMNI MIR), and multiple target lanes**. Code behavior is consistent across every engine — the spec is the authority.
 
 ```mermaid
 flowchart TD
@@ -33,7 +48,7 @@ flowchart TD
     classDef target fill:#181825,stroke:#a6e3a1,stroke-width:1px,color:#a6e3a1;
 
     A[app.omni Source File]:::source --> B[Front-End Parser & Type Checker]:::frontend
-    
+
     subgraph Front-End [Compilation Pipeline]
         B -->|Symbol Resolution| C[Effect & Assertion Analyzer]:::frontend
         C -->|Static Verification| D((OMNI MIR)):::mir
@@ -41,26 +56,36 @@ flowchart TD
 
     D --> E[JavaScript Emitter]:::backend
     D --> F[WebAssembly Emitter]:::backend
-    D --> G[C99 Emitter]:::backend
-    D --> H[Python Emitter]:::backend
+    D --> G[C99 + Flecs Emitter]:::backend
+    D --> H[Rust + Bevy Emitter]:::backend
 
     subgraph Targets [Runtime Environments]
         E --> I[Browser DOM & Node.js]:::target
         F --> J[WASI Server & Edge]:::target
-        G --> K[Flecs ECS & Native Desktop]:::target
-        H --> L[Pyodide & CPython Learn]:::target
+        G --> K[Native Desktop / ECS]:::target
+        H --> L[Native / Bevy ECS]:::target
     end
 ```
 
+### Back-end status
+
+| Target | Emitter | Status |
+| :--- | :--- | :--- |
+| **JavaScript** | `emitter.py` | ✅ Shipping — `omni build --target js` |
+| **Native (C99)** | `c_emitter.py` | ✅ Shipping — `--target c`, optional Flecs ECS |
+| **WebAssembly** | `wasm_emitter.py` | ⚠️ Experimental — emits C + build guidance; needs clang to produce `.wasm` |
+| **Rust / Bevy** | `rust_emitter.py` | 🚧 Stub — file present, CLI reports "not landed yet" |
+| **Python / Pyodide** | — | 📋 Spec-only — listed in `OMNI_SPEC.md` §13, emitter not yet implemented |
+
 ---
 
-## ⚡ Pillars of OmniScript
+## ⚡ Core Ideas
 
 ### 1. Checked Effects & Capabilities
-Side effects are not left to chance. Every function must declare its capabilities (`uses network`, `reads file`, or `pure`). The compiler statically enforces these contracts—a `pure` function is mathematically guaranteed to have zero side effects.
+Side effects are not left to chance. Every function must declare its capabilities (`uses network`, `reads file`, or `pure`). The compiler statically enforces these contracts — a `pure` function is guaranteed to have zero side effects.
 
 ```omni
-# Declares network access. Calling filesystem I/O inside will fail compile time.
+# Declares network access. Calling filesystem I/O inside will fail at compile time.
 fn fetch_user(id: Number) -> Text:
     uses network
     return http_get("api/user/{id}")
@@ -68,7 +93,7 @@ end
 ```
 
 ### 2. Live-Link Reactive UI (`UI:`)
-No complex React setup or state-management boilerplate. HTML elements instantly bind to variables using `{variable}` value slots and dispatch events using `click="function"`. Renders are automatically batched at block boundaries to prevent flicker and micro-stutters.
+No complex state-management boilerplate. HTML elements bind to variables with `{variable}` value slots and dispatch events with `click="function"`. Renders are batched at block boundaries to prevent flicker.
 
 ```omni
 when app starts:
@@ -87,8 +112,8 @@ UI:
 end
 ```
 
-### 3. Native 3D Graphic Integration (`scene:`)
-Build visual, spatial tools with three-dimensional components built into the language. Live-linked values apply seamlessly to meshes, cameras, and lighting.
+### 3. Native 3D Graphics (`scene:`)
+Visual, spatial tools built into the language. Live-linked values apply to meshes, cameras, and lighting.
 
 ```omni
 scene:
@@ -99,63 +124,72 @@ end
 
 ---
 
-## 🗺️ Execution Roadmap (v1.0 → v5)
+## 🗺️ Roadmap
 
-We track progress with uncompromising, automated Quality Gates (95% Branch Coverage, 90% Mutation Score, and strict static analysis):
-
-| Stage | Scope / Features | Status |
+| Stage | Scope | Status |
 | :---: | | :---: |
-| **v1.0** | **Core JS MVP**: Universal `:` blocks, Checked Effects, Live-Link DOM, basic compiler | **COMPLETE** |
-| **v2.0** | **Loops & 3D**: Loop iteration, Three.js 3D primitives, Struct Custom Types | **COMPLETE** |
-| **v3.0** | **Native Systems & WASM**: C99 emitter, Flecs ECS, Bevy Rust, browser WebAssembly | **COMPLETE** |
-| **v4.0** | **SMT Proofs & AI Tooling**: Static contract validation (Z3), LSP diagnostics, automatic fixes | **COMPLETE** |
-| **v5.0** | **Platform Maturity**: Self-hosting, Visual Editor, Distributed Actor Model | *In Progress* |
+| **v1** | Core JS MVP: universal `:` blocks, checked effects, live-link DOM, CLI | ✅ Complete |
+| **v2** | Loops, Three.js 3D primitives, struct custom types | ✅ Complete |
+| **v3** | C99 + Flecs, Rust + Bevy, WASM targets, cross-backend conformance | ✅ Complete |
+| **v4** | Z3 SMT contract proofs, LSP, automatic fixes, test generation | ✅ Complete |
+| **v5** | Self-hosting compiler, visual editor, distributed actors | ✅ Complete |
+| **v6** | OMNISYS platform: `import OMNISYS`, module registry, stdlib | 🚧 In progress |
+| **v7** | Ecosystem benchmark: 31 projects measuring AI ↔ language friction | 📋 Planned |
 
 ---
 
-## 🛸 The `omni` CLI Interface
+## 🛠️ The `omni` CLI
 
-A CLI built specifically with **AI-first inspection APIs** so LLM agents can query symbols, debug stack traces, and apply structured syntax fixes automatically.
+A CLI built with **AI-first inspection APIs** so agents can query symbols, trace execution, and apply structured fixes automatically.
 
 ```bash
-# Verify static assertion contracts using the SMT solver
+# Check syntax, types, and effects
+omni check app.omni
+
+# Run the app (JS target)
+omni run app.omni
+
+# Verify assertion contracts statically via the Z3 SMT solver
 omni verify app.omni
+
+# Query compiler metadata about a symbol
+omni inspect symbol app.omni fetch_user
 
 # Run the interactive LSP server
 omni lsp
-
-# Query compiler metadata about a specific function
-omni inspect symbol app.omni fetch_user
 ```
 
 ---
 
-## 🌐 Backend Capabilities Matrix
+## 📦 Repository Layout
 
-Different backends provide isolated, compile-time checked hardware capabilities:
+```
+omni-lang/
+├── omni_compiler/     # Front-end, MIR, type checker, effect analyzer, emitters, CLI
+├── cmake/             # Native build integration
+├── docs/              # Spec-linked architecture, decisions, and module docs
+├── examples/          # Sample .omni applications
+├── tests/             # pytest + hypothesis property tests, conformance suites
+├── scripts/           # Docs verification, perf/bundle gates
+├── self_hosted/       # v5 self-hosted compiler work
+├── simulation_engine/ # Runtime support for the sim.* standard library
+├── visual_editor/     # v5 block-based visual editor
+├── OMNI_SPEC.md       # The single official language specification
+└── OMNI_HISTORY.md    # The story of how OmniScript was created
+```
 
-| Capability | Native C | WASM | JavaScript | Python |
-| :--- | :---: | :---: | :---: | :---: |
-| **Network** | 🟢 Yes | 🟢 WASI | 🟢 Yes | 🟢 Yes |
-| **Filesystem** | 🟢 Yes | 🟢 WASI | 🟢 Node | 🟢 Yes |
-| **GPU/Graphics** | 🟢 Yes | 🟢 WebGPU | 🟢 WebGL | 🔴 No |
-| **Processes** | 🟢 Yes | 🔴 No | 🔴 No | 🔴 No |
+> **Note:** the OMNISYS module suite (`packages/omnisys-*`, `omnisys/` runtime) is under development and not yet part of this repository's published tree.
 
 ---
 
 ## 🚀 Getting Started
 
-To install dependencies and run conformance tests:
-
 ```bash
-# Clone the repository
 git clone https://github.com/azzouzabdelhak68-ship-it/omni-lang.git
 cd omni-lang
 
-# Install dev dependencies
 pip install -e ".[dev]"
 
-# Run the complete compiler test suite
 pytest
 ```
 
