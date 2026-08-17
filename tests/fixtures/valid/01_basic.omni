@@ -1,0 +1,15 @@
+when app starts:
+    greeting = "Hello, {name}"
+end
+
+fn change_greeting() -> None:
+    writes name
+    writes greeting
+    name = "OmniScript"
+    greeting = "Hello, {name}"
+end
+
+UI:
+<h1>{greeting}</h1>
+<button click="change_greeting">Change it</button>
+end

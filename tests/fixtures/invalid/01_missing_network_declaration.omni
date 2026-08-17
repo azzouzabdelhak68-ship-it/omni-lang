@@ -1,0 +1,7 @@
+fn get_data(url: Text) -> Text:
+    return fetch(url)
+end
+
+when app starts:
+    result = get_data("https://api.example.com")
+end

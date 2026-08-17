@@ -1,0 +1,24 @@
+fn process(items: List) -> Number:
+    writes log
+    total = 0
+    for n in items:
+        if n greater than 10:
+            continue
+        end
+        if n is 0:
+            break
+        end
+        total = total + n
+    end
+    return total
+end
+
+fn label(items: List) -> Text:
+    return join(items, ", ")
+end
+
+when app starts:
+    nums = [1, 2, 3, 11, 0, 4]
+    total = process(nums)
+    text = label(["a", "b", "c"])
+end

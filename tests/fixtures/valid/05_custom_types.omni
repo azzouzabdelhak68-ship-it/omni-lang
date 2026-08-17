@@ -1,0 +1,13 @@
+type Address = { street: Text, zip: Number }
+type Person = { name: Text, age: Number, address: Address }
+
+fn describe(p: Person) -> Text:
+    return "{p.name} lives at {p.address.street}"
+end
+
+when app starts:
+    a = Address(street="Main St", zip=100)
+    p = Person(name="Ada", age=36, address=a)
+    bio = describe(p)
+    street = p.address.street
+end

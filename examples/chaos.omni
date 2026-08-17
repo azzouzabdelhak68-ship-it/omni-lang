@@ -1,0 +1,33 @@
+# v5.3 chaos demo — node failure, supervision restart, at-least-once delivery.
+#
+# The `log` actor lives on node n2. We deliver a message to it, then crash the
+# node. A message sent while n2 is down is held in the coordinator's outbox
+# (never dropped). The cluster supervisor restarts n2, and both messages are
+# redelivered to the resurrected actor.
+
+fn acc_behavior(state: Number, msg: Text) -> Number:
+    if msg is "inc":
+        return state + 1
+    end
+    return state
+end
+
+fn log_behavior(state: Number, msg: Text) -> Number:
+    show msg
+    return state
+end
+
+when app starts:
+    sim.cluster("chaos")
+    sim.node("n1")
+    sim.node("n2")
+    acc = sim.spawn("n1", "acc", acc_behavior, 0)
+    log = sim.spawn("n2", "log", log_behavior, 0)
+    sim.send(log, "ping")
+    sim.fail("n2")
+    sim.send(log, "after-crash")
+    sim.run()
+    sim.send(acc, "inc")
+    sim.run()
+    show "chaos done"
+end

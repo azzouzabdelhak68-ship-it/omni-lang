@@ -1,0 +1,12 @@
+when app starts:
+    main_color = "#22d3ee"
+end
+
+scene:
+    box size="2" color={main_color}
+    sphere size="1.5" color="#ffffff" pos="0,2,0"
+    cylinder size="1" color="#fbbf24"
+    plane size="10" color="#334155"
+    light type="directional" intensity="2"
+    camera pos="0,0,6"
+end

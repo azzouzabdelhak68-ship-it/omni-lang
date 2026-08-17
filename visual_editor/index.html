@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OmniScript Visual Editor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>OmniScript Visual Editor</h1>
+    <div class="actions">
+      <button id="generate-btn" type="button">Generate .omni</button>
+      <button id="clear-btn" type="button" class="ghost">Clear</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="palette" aria-label="Block palette">
+      <h2>Blocks</h2>
+      <div class="chips">
+        <div class="chip" data-type="assign" draggable="true">assign</div>
+        <div class="chip" data-type="show" draggable="true">show</div>
+        <div class="chip" data-type="call" draggable="true">call</div>
+        <div class="chip" data-type="if" draggable="true">if</div>
+        <div class="chip" data-type="for" draggable="true">for</div>
+        <div class="chip" data-type="fn" draggable="true">fn</div>
+        <div class="chip" data-type="return" draggable="true">return</div>
+        <div class="chip" data-type="break" draggable="true">break</div>
+        <div class="chip" data-type="continue" draggable="true">continue</div>
+      </div>
+      <p class="hint">Drag a block onto the canvas. Container blocks (if / for / fn)
+        accept nested blocks in their body; if also has an else branch.</p>
+    </section>
+
+    <section id="canvas" aria-label="Script canvas">
+      <h2>Script</h2>
+      <div id="root" class="root"></div>
+    </section>
+
+    <section id="output" aria-label="Generated code">
+      <h2>Generated OmniScript</h2>
+      <textarea id="omni-code" readonly spellcheck="false"></textarea>
+      <p id="status" class="status"></p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

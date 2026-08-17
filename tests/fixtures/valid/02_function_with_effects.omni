@@ -1,0 +1,27 @@
+fn fetch_data(url: Text) -> Text:
+    uses network
+    reads cache
+    writes cache
+    return "data from " + url
+end
+
+fn pure_add(a: Number, b: Number) -> Number:
+    pure
+    return a + b
+end
+
+fn add(a: Number, b: Number) -> Number:
+    pure
+    return a + b
+end
+
+fn fetch(url: Text) -> Text:
+    uses network
+    return url
+end
+
+when app starts:
+    result = fetch_data("https://api.example.com")
+    sum = pure_add(1, 2)
+    total = add(sum, 1)
+end

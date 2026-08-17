@@ -1,0 +1,42 @@
+# v5.3 distributed systems demo — actor model, message passing, clustering.
+#
+# The core OmniScript grammar stays general (spec §13.5 / §17): distributed
+# features are a standard library (`sim.*`). The flat single-dot names used
+# here (`sim.spawn`, `sim.partition`, ...) are the OmniScript bridge onto the
+# canonical `sim.actor.*` JS runtime (see simulation_engine/README.md).
+#
+# Program: a counter actor on node n1 and a logger actor on node n2. We send
+# two increments, partition the coordinator off from n2 (a message sent during
+# the partition is held, not dropped), heal the partition, and drain.
+
+fn counter_behavior(state: Number, msg: Text) -> Number:
+    if msg is "inc":
+        return state + 1
+    end
+    if msg is "dec":
+        return state - 1
+    end
+    return state
+end
+
+fn logger_behavior(state: Number, msg: Text) -> Number:
+    show msg
+    return state
+end
+
+when app starts:
+    sim.cluster("demo")
+    sim.node("n1")
+    sim.node("n2")
+    counter = sim.spawn("n1", "counter", counter_behavior, 0)
+    logger = sim.spawn("n2", "logger", logger_behavior, 0)
+    sim.send(counter, "inc")
+    sim.send(counter, "inc")
+    sim.partition("demo.coordinator", "n2")
+    sim.send(logger, "during partition")
+    sim.run()
+    sim.heal("demo.coordinator", "n2")
+    sim.run()
+    show join(sim.members("demo.coordinator"), ", ")
+    show "done"
+end

@@ -1,0 +1,66 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.0
+    hooks:
+      - id: ruff
+        args: [check, --select=ALL, --exit-non-zero-on-fix]
+        name: ruff-check
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        args: [--strict, --show-error-codes, --show-error-context]
+
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: [-r, omni_compiler, -ll, --severity-level, medium]
+
+  - repo: local
+    hooks:
+      - id: pytest-unit
+        name: pytest-unit
+        entry: pytest tests/ -x --tb=short -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest-cov
+        name: pytest-coverage
+        entry: pytest --cov=omni_compiler --cov-fail-under=90 --cov-branch --cov-report=term-missing
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest-mutmut
+        name: mutation-testing
+        entry: mutmut run --paths-to-mutate omni_compiler --tests-dir tests --runner "pytest -x"
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: false
+        stages: [commit, push]
+
+      - id: verify-phase
+        name: verify-phase-gates
+        entry: python scripts/verify_phase.py
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+default_stages: [commit]
+default_install_hook_types: [commit, push]
+fail_fast: true

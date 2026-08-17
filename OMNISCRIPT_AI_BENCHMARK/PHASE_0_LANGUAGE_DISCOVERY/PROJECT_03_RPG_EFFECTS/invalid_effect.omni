@@ -1,0 +1,9 @@
+fn save_player(name: Text) -> Text:
+    pure
+    writes save_file
+    return "Saved {name}"
+end
+
+when app starts:
+    msg = save_player("Hero")
+end

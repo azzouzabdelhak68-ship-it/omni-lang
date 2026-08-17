@@ -1,0 +1,263 @@
+:root {
+  --bg: #0f1220;
+  --panel: #171b2e;
+  --panel-2: #1f2440;
+  --border: #2c3357;
+  --text: #e8eaf6;
+  --muted: #9aa0c3;
+  --accent: #7c6cf0;
+  --accent-2: #4fc3f7;
+  --danger: #ef5350;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.4px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.1);
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 220px 1fr 1fr;
+  gap: 0;
+  min-height: 0;
+}
+
+section {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+section h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+#palette {
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.chips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chip {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 14px;
+  cursor: grab;
+  user-select: none;
+}
+
+.chip:hover {
+  border-color: var(--accent-2);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+#canvas {
+  border-right: 1px solid var(--border);
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+  padding: 8px;
+  border: 2px dashed transparent;
+  border-radius: var(--radius);
+}
+
+.root.empty {
+  color: var(--muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--border);
+}
+
+.root.drop-hover,
+.dropzone.drop-hover {
+  border-color: var(--accent-2);
+  background: rgba(79, 195, 247, 0.08);
+}
+
+.card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card.type-fn {
+  border-left: 4px solid var(--accent);
+}
+
+.card.type-if {
+  border-left: 4px solid var(--accent-2);
+}
+
+.card.type-for {
+  border-left: 4px solid #66bb6a;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.card-title {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  color: var(--accent-2);
+}
+
+.remove {
+  background: transparent;
+  color: var(--danger);
+  padding: 0 6px;
+  font-size: 16px;
+  line-height: 1;
+  border: none;
+  cursor: pointer;
+}
+
+.card-body {
+  padding: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.field input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 7px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  min-width: 120px;
+}
+
+.nested {
+  margin: 0 10px 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nested.else {
+  border-left-color: var(--danger);
+}
+
+.dropzone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#output textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  resize: none;
+  background: var(--bg);
+  color: #c9f2ff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.status {
+  font-size: 12px;
+  color: var(--muted);
+}
