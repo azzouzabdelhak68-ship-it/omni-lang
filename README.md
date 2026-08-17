@@ -1,19 +1,24 @@
-<div align="center">
+<div align="center" style="background: linear-gradient(135deg, #0b0b14 0%, #1a0b2e 100%); padding: 40px; border-radius: 16px; border: 1px solid rgba(168,85,247,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
 
 # 🌌 OmniScript
+<h3 style="color: #f472b6; font-weight: 700; letter-spacing: 2px; margin-top: 5px;">THE AI-FIRST PROGRAMMING LANGUAGE</h3>
 
-### **THE AI-FIRST PROGRAMMING LANGUAGE**
+<p style="color: #cbd5e1; max-width: 650px; line-height: 1.6; font-size: 15px;">
+One <code style="color: #e879f9; background: #2e1065; padding: 2px 6px; border-radius: 4px;">.omni</code> file is a complete, verifiable application. Defined by a single rigorous specification, checked by static effect analysis, and compiled through OMNI MIR to multiple targets.
+</p>
 
-*One `.omni` file is a complete, verifiable application. Defined by a single rigorous specification, checked by static effect analysis, compiled through OMNI MIR to multiple native and web targets.*
+<p style="margin: 20px 0;">
+  <a href="index.html" style="background: #7c3aed; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-right: 10px;">🌐 Launch Web Dashboard</a>
+  <a href="OMNI_SPEC.md" style="background: rgba(124,58,237,0.2); color: #c4b5fd; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 1px solid rgba(124,58,237,0.4); display: inline-block; margin-right: 10px;">📖 Explore Spec</a>
+  <a href="docs/INDEX.md" style="background: rgba(56,189,248,0.2); color: #bae6fd; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 1px solid rgba(56,189,248,0.4); display: inline-block;">📚 Docs</a>
+</p>
 
-[🌐 View Live Dashboard & Landing Page](index.html) &nbsp;•&nbsp; [Explore Spec](OMNI_SPEC.md) &nbsp;•&nbsp; [Our Story](OMNI_HISTORY.md) &nbsp;•&nbsp; [Browse Docs](docs/INDEX.md)
-
-<br>
-
-[![CI Status](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions)
-[![Docs Status](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions/workflows/docs.yml/badge.svg)](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+<p style="margin-top: 15px;">
+  <img src="https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions/workflows/ci.yml/badge.svg" alt="CI Status" />
+  <img src="https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions/workflows/docs.yml/badge.svg" alt="Docs Status" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License" />
+  <img src="https://img.shields.io/badge/Python-3.11%2B-blue.svg" alt="Python 3.11+" />
+</p>
 
 </div>
 
@@ -21,16 +26,49 @@
 
 ## 📍 System Status
 
-| Layer / Subsystem | Scope & Capabilities | Status |
-| :--- | :--- | :--- |
-| **Language Core (v1–v4)** | Parser, type checker, checked effects, OMNI MIR, diagnostics | ✅ **COMPLETE** |
-| **Native + WASM Lanes (v3)** | C99 & Rust emitters, WASM targets, Flecs/Bevy ECS integration | ✅ **COMPLETE** |
-| **SMT + AI Tooling (v4)** | Z3 contract verification, LSP server, `suggest`/`generate`/`trace` | ✅ **COMPLETE** |
-| **Self-Hosting & Visual Editor (v5)** | 296 tests passing, 90.48% branch coverage, block editor, actor model | ✅ **COMPLETE** |
-| **OMNISYS Platform (v6)** | Distributed runtime, module implementation & stdlib expansion | 🚧 **IN PROGRESS** |
-| **Ecosystem Benchmark (v7)** | Multi-project evaluation measuring AI ↔ language friction | 📋 **PLANNED** |
+<table style="width: 100%; border-collapse: collapse; background: #0f0f1b; border: 1px solid rgba(168,85,247,0.2); border-radius: 12px; overflow: hidden;">
+  <thead>
+    <tr style="background: #1e1e3f; color: #e879f9; text-align: left; font-family: monospace; font-size: 13px;">
+      <th style="padding: 12px 16px;">LAYER / SUBSYSTEM</th>
+      <th style="padding: 12px 16px;">SCOPE & CAPABILITIES</th>
+      <th style="padding: 12px 16px;">STATUS</th>
+    </tr>
+  </thead>
+  <tbody style="color: #cbd5e1; font-size: 14px;">
+    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
+      <td style="padding: 12px 16px; font-weight: bold; color: #fff;">Language Core (v1–v4)</td>
+      <td style="padding: 12px 16px;">Parser, type checker, checked effects, OMNI MIR, diagnostics</td>
+      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
+    </tr>
+    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
+      <td style="padding: 12px 16px; font-weight: bold; color: #fff;">Native + WASM Lanes (v3)</td>
+      <td style="padding: 12px 16px;">C99 & Rust emitters, WASM targets, Flecs/Bevy ECS integration</td>
+      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
+    </tr>
+    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
+      <td style="padding: 12px 16px; font-weight: bold; color: #fff;">SMT + AI Tooling (v4)</td>
+      <td style="padding: 12px 16px;">Z3 contract verification, LSP server, suggest/generate/trace</td>
+      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
+    </tr>
+    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
+      <td style="padding: 12px 16px; font-weight: bold; color: #fff;">Self-Hosting & Visual Editor (v5)</td>
+      <td style="padding: 12px 16px;">296 tests passing, 90.48% branch coverage, block editor</td>
+      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
+    </tr>
+    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
+      <td style="padding: 12px 16px; font-weight: bold; color: #fff;">OMNISYS Platform (v6)</td>
+      <td style="padding: 12px 16px;">Distributed runtime, module implementation & stdlib expansion</td>
+      <td style="padding: 12px 16px;"><span style="background: #422006; color: #fbbf24; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">🚧 IN PROGRESS</span></td>
+    </tr>
+    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
+      <td style="padding: 12px 16px; font-weight: bold; color: #fff;">Ecosystem Benchmark (v7)</td>
+      <td style="padding: 12px 16px;">Multi-project evaluation measuring AI ↔ language friction</td>
+      <td style="padding: 12px 16px;"><span style="background: #172554; color: #60a5fa; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">📋 PLANNED</span></td>
+    </tr>
+  </tbody>
+</table>
 
-> 📊 **Test Suite:** **296 passed**, 3 skipped (requires gcc/cargo). Coverage gate: **90.48% ≥ 90%**.
+> 📊 **Test Suite:** **296 passed**, 3 skipped. Coverage gate: **90.48% ≥ 90%**.
 
 ---
 
@@ -160,17 +198,16 @@ end
 | :--- | :--- | :--- |
 | **Tests Passed** | `296` | 100% core test suite green |
 | **Tests Skipped** | `3` | Environment-dependent (gcc/cargo) |
-| **Branch Coverage** | `90.48%` | Exceeds 90% strict coverage gate |
-| **Target Runtimes** | `6+` | JS, WASI, C99, Bevy, Pyodide, Custom ECS |
+| **Taget Runtimes** | `6+` | JS, WASI, C99, Bevy, Pyodide, Custom ECS |
 | **Source Language** | `1` | Universal `.omni` specification |
 | **Possibilities** | `∞` | AI-first verifiable architecture |
 
 ---
 
-<div align="center">
+<div align="center" style="background: #0f0f1b; padding: 25px; border-radius: 12px; border: 1px solid rgba(168,85,247,0.2);">
 
-⭐ **SPEC FIRST. VERIFIED ALWAYS. RUN ANYWHERE.**
+<span style="color: #fbbf24; font-weight: bold; font-size: 15px;">⭐ SPEC FIRST. VERIFIED ALWAYS. RUN ANYWHERE.</span>
 
-Built with ❤️ by the OmniScript Community.
+<p style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Built with ❤️ by the OmniScript Community.</p>
 
 </div>
