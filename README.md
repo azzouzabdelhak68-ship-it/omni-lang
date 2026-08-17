@@ -6,7 +6,7 @@
 
 *One `.omni` file is a complete, verifiable application. Defined by a single rigorous specification, checked by static effect analysis, compiled through OMNI MIR to multiple native and web targets.*
 
-[Explore Spec](OMNI_SPEC.md) &nbsp;•&nbsp; [Our Story](OMNI_HISTORY.md) &nbsp;•&nbsp; [Browse Docs](docs/INDEX.md)
+[🌐 View Live Dashboard & Landing Page](index.html) &nbsp;•&nbsp; [Explore Spec](OMNI_SPEC.md) &nbsp;•&nbsp; [Our Story](OMNI_HISTORY.md) &nbsp;•&nbsp; [Browse Docs](docs/INDEX.md)
 
 <br>
 

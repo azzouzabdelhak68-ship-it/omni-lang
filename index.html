@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniScript — The AI-First Programming Language</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        omni: {
+                            bg: '#07070e',
+                            card: '#0f0f1b',
+                            cardBorder: 'rgba(168, 85, 247, 0.2)',
+                            accent: '#c084fc',
+                            pink: '#f43f5e',
+                            cyan: '#38bdf8',
+                            green: '#4ade80'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"Fira Code"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #07070e;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(147, 51, 234, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(236, 72, 153, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, transparent 60%);
+            color: #e2e8f0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glow-card {
+            background: linear-gradient(135deg, rgba(15, 15, 27, 0.95) 0%, rgba(22, 22, 38, 0.9) 100%);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            border-radius: 1rem;
+        }
+        .glow-card:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+            box-shadow: 0 12px 40px 0 rgba(147, 51, 234, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+        }
+        .cosmic-title {
+            background: linear-gradient(135deg, #ffffff 0%, #e879f9 50%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .mac-window {
+            background: #0b0b14;
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            border-radius: 0.75rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto space-y-8">
+
+        <!-- TOP HEADER & CODE PREVIEW -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            
+            <!-- Left Branding -->
+            <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+                <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide uppercase">
+                    <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                    AI-First Architecture v5.0
+                </div>
+                
+                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight cosmic-title">
+                    OmniScript
+                </h1>
+                
+                <p class="text-xl font-semibold text-purple-200 uppercase tracking-widest text-xs">
+                    THE AI-FIRST PROGRAMMING LANGUAGE
+                </p>
+                
+                <p class="text-gray-300 text-base sm:text-lg leading-relaxed max-w-2xl">
+                    One <code class="font-mono text-purple-400">.omni</code> file is a complete app. Defined by a single specification, checked by a rigorous front-end, compiled through OMNI MIR to multiple native and web targets.
+                </p>
+
+                <!-- Nav Links -->
+                <div class="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
+                    <a href="OMNI_SPEC.md" class="px-5 py-2.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 font-medium text-sm transition flex items-center space-x-2">
+                        <span>📖 Explore Spec</span>
+                    </a>
+                    <a href="OMNI_HISTORY.md" class="px-5 py-2.5 rounded-lg bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/40 text-pink-200 font-medium text-sm transition flex items-center space-x-2">
+                        <span>✨ Our Story</span>
+                    </a>
+                    <a href="docs/INDEX.md" class="px-5 py-2.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-200 font-medium text-sm transition flex items-center space-x-2">
+                        <span>📚 Browse Docs</span>
+                    </a>
+                </div>
+
+                <!-- Status Badges -->
+                <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-4">
+                    <div class="px-3 py-1 rounded bg-black/40 border border-green-500/30 text-xs font-mono flex items-center space-x-2">
+                        <span class="text-gray-400">CI</span>
+                        <span class="text-green-400 font-bold">passing</span>
+                    </div>
+                    <div class="px-3 py-1 rounded bg-black/40 border border-green-500/30 text-xs font-mono flex items-center space-x-2">
+                        <span class="text-gray-400">Docs</span>
+                        <span class="text-green-400 font-bold">passing</span>
+                    </div>
+                    <div class="px-3 py-1 rounded bg-black/40 border border-yellow-500/30 text-xs font-mono flex items-center space-x-2">
+                        <span class="text-gray-400">License</span>
+                        <span class="text-yellow-400 font-bold">MIT</span>
+                    </div>
+                    <div class="px-3 py-1 rounded bg-black/40 border border-blue-500/30 text-xs font-mono flex items-center space-x-2">
+                        <span class="text-gray-400">Python</span>
+                        <span class="text-blue-400 font-bold">3.11+</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right macOS Code Window -->
+            <div class="lg:col-span-5">
+                <div class="mac-window overflow-hidden">
+                    <div class="px-4 py-3 bg-[#111122] border-b border-purple-500/20 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                        </div>
+                        <span class="text-xs font-mono text-gray-400">app.omni</span>
+                        <div class="w-10"></div>
+                    </div>
+                    <pre class="p-4 font-mono text-xs sm:text-sm text-gray-300 overflow-x-auto leading-relaxed"><code><span class="text-purple-400">when</span> app starts:
+    msg = <span class="text-green-300">"Hello, World!"</span>
+<span class="text-purple-400">end</span>
+
+<span class="text-purple-400">fn</span> greet(name: Text) -> Text:
+    <span class="text-cyan-300">pure</span>
+    <span class="text-purple-400">return</span> <span class="text-green-300">"Hello, {name}!"</span>
+<span class="text-purple-400">end</span>
+
+<span class="text-pink-400">UI:</span>
+    &lt;div class=<span class="text-green-300">"card"</span>&gt;
+        &lt;h1&gt;{greet(<span class="text-green-300">"Omni"</span>)}&lt;/h1&gt;
+    &lt;/div&gt;
+<span class="text-purple-400">end</span></code></pre>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- MAIN GRID CONTENT -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Status & Architecture & Backend -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- STATUS SECTION -->
+                <div class="glow-card p-6 space-y-6">
+                    <div class="flex items-center justify-between border-b border-purple-500/20 pb-4">
+                        <h2 class="text-lg font-bold tracking-wide flex items-center space-x-2 text-purple-200">
+                            <span>📍</span>
+                            <span>STATUS</span>
+                        </h2>
+                        <span class="text-xs font-mono text-gray-400">Gate: 90.48% ≥ 90%</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-purple-500/10">
+                            <div>
+                                <div class="font-semibold text-sm text-white">Language core (v1–v4)</div>
+                                <div class="text-xs text-gray-400">Parser, type checker, checked effects, OMNI MIR, diagnostics</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded bg-green-950/80 border border-green-500/40 text-green-300 text-xs font-mono font-semibold">✅ COMPLETE</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-purple-500/10">
+                            <div>
+                                <div class="font-semibold text-sm text-white">Native + WASM lanes (v3)</div>
+                                <div class="text-xs text-gray-400">C99 & Rust emitters, WASM targets, Flecs/Bevy adapters</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded bg-green-950/80 border border-green-500/40 text-green-300 text-xs font-mono font-semibold">✅ COMPLETE</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-purple-500/10">
+                            <div>
+                                <div class="font-semibold text-sm text-white">SMT + AI tooling (v4)</div>
+                                <div class="text-xs text-gray-400">Z3 contract verification, LSP server, suggest/generate/trace</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded bg-green-950/80 border border-green-500/40 text-green-300 text-xs font-mono font-semibold">✅ COMPLETE</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-purple-500/10">
+                            <div>
+                                <div class="font-semibold text-sm text-white">Self-hosting, visual editor, distributed (v5)</div>
+                                <div class="text-xs text-gray-400">296 tests passing, 90.48% branch coverage</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded bg-green-950/80 border border-green-500/40 text-green-300 text-xs font-mono font-semibold">✅ COMPLETE</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-purple-500/10">
+                            <div>
+                                <div class="font-semibold text-sm text-white">OMNISYS platform (v6)</div>
+                                <div class="text-xs text-gray-400">Docs layer complete; module implementations under dev</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded bg-yellow-950/80 border border-yellow-500/40 text-yellow-300 text-xs font-mono font-semibold">🚧 IN PROGRESS</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-black/30 border border-purple-500/10">
+                            <div>
+                                <div class="font-semibold text-sm text-white">Ecosystem benchmark (v7)</div>
+                                <div class="text-xs text-gray-400">Planned architecture and benchmarking suite</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded bg-blue-950/80 border border-blue-500/40 text-blue-300 text-xs font-mono font-semibold">📋 PLANNED</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- UNIFIED ARCHITECTURE -->
+                <div class="glow-card p-6 space-y-6">
+                    <div class="border-b border-purple-500/20 pb-4">
+                        <h2 class="text-lg font-bold tracking-wide flex items-center space-x-2 text-purple-200">
+                            <span>☈</span>
+                            <span>UNIFIED ARCHITECTURE</span>
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Compilation Pipeline & Multi-Target Emitter Matrix</p>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-black/40 border border-purple-500/20 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+                        <div class="space-y-1">
+                            <span class="text-xs font-mono text-purple-400">Source</span>
+                            <div class="p-3 rounded bg-purple-950/30 border border-purple-500/30 font-mono text-xs">app.omni</div>
+                        </div>
+                        <div class="text-purple-400">➔</div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-mono text-pink-400">Front-End</span>
+                            <div class="p-3 rounded bg-pink-950/30 border border-pink-500/30 font-mono text-xs">Parser & Type Checker</div>
+                        </div>
+                        <div class="text-pink-400">➔</div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-mono text-cyan-400">MIR</span>
+                            <div class="p-3 rounded bg-cyan-950/30 border border-cyan-500/30 font-mono text-xs font-bold">OMNI MIR</div>
+                        </div>
+                        <div class="text-cyan-400">➔</div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-mono text-green-400">Targets</span>
+                            <div class="p-3 rounded bg-green-950/30 border border-green-500/30 font-mono text-xs">JS, WASM, C99, Bevy</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BACK-END STATUS TABLE -->
+                <div class="glow-card p-6 space-y-6">
+                    <div class="border-b border-purple-500/20 pb-4">
+                        <h2 class="text-lg font-bold tracking-wide flex items-center space-x-2 text-purple-200">
+                            <span>⚙️</span>
+                            <span>BACK-END STATUS</span>
+                        </h2>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="border-b border-purple-500/20 text-xs font-mono text-purple-300">
+                                    <th class="pb-3">TARGET</th>
+                                    <th class="pb-3">EMITTER</th>
+                                    <th class="pb-3">STATUS</th>
+                                    <th class="pb-3">NOTES</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-purple-500/10 font-mono text-xs">
+                                <tr>
+                                    <td class="py-3 font-semibold text-white">JavaScript</td>
+                                    <td class="py-3 text-gray-300">emitter.py</td>
+                                    <td class="py-3"><span class="text-green-400 font-bold">✅ SHIPPING</span></td>
+                                    <td class="py-3 text-gray-400">omni build --target js</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-semibold text-white">Native (C99)</td>
+                                    <td class="py-3 text-gray-300">c_emitter.py</td>
+                                    <td class="py-3"><span class="text-green-400 font-bold">✅ SHIPPING</span></td>
+                                    <td class="py-3 text-gray-400">--target c, optional Flecs ECS</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-semibold text-white">WebAssembly</td>
+                                    <td class="py-3 text-gray-300">wasm_emitter.py</td>
+                                    <td class="py-3"><span class="text-yellow-400 font-bold">⚠️ EXPERIMENTAL</span></td>
+                                    <td class="py-3 text-gray-400">Emits C + build guidance; needs clang</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-semibold text-white">Rust / Bevy</td>
+                                    <td class="py-3 text-gray-300">rust_emitter.py</td>
+                                    <td class="py-3"><span class="text-pink-400 font-bold">🚧 STUB</span></td>
+                                    <td class="py-3 text-gray-400">File present, CLI reports "not landed yet"</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 font-semibold text-white">Python / Pyodide</td>
+                                    <td class="py-3 text-gray-300">—</td>
+                                    <td class="py-3"><span class="text-purple-400 font-bold">📋 SPEC-ONLY</span></td>
+                                    <td class="py-3 text-gray-400">Listed in OMNI_SPEC.md §13</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Quick Start, Core Ideas, Metrics -->
+            <div class="space-y-8">
+                
+                <!-- QUICK START -->
+                <div class="glow-card p-6 space-y-4">
+                    <div class="border-b border-purple-500/20 pb-4">
+                        <h2 class="text-lg font-bold tracking-wide flex items-center space-x-2 text-purple-200">
+                            <span>⚡</span>
+                            <span>QUICK START</span>
+                        </h2>
+                    </div>
+
+                    <div class="space-y-3 font-mono text-xs">
+                        <div class="p-3 rounded bg-black/50 border border-purple-500/20 text-gray-300">
+                            <div class="text-gray-500 mb-1"># Install</div>
+                            <span class="text-purple-300">pip install -e ".[dev]"</span>
+                        </div>
+                        <div class="p-3 rounded bg-black/50 border border-purple-500/20 text-gray-300">
+                            <div class="text-gray-500 mb-1"># Build for JavaScript</div>
+                            <span class="text-purple-300">omni build app.omni --target js</span>
+                        </div>
+                        <div class="p-3 rounded bg-black/50 border border-purple-500/20 text-gray-300">
+                            <div class="text-gray-500 mb-1"># Run</div>
+                            <span class="text-purple-300">omni run app.omni</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CORE IDEAS -->
+                <div class="glow-card p-6 space-y-6">
+                    <div class="border-b border-purple-500/20 pb-4">
+                        <h2 class="text-lg font-bold tracking-wide flex items-center space-x-2 text-purple-200">
+                            <span>💬</span>
+                            <span>CORE IDEAS</span>
+                        </h2>
+                    </div>
+
+                    <div class="space-y-6 text-sm">
+                        <div class="space-y-2">
+                            <h3 class="font-bold text-purple-300">1. Checked Effects & Capabilities</h3>
+                            <p class="text-xs text-gray-400">Every function declares its capabilities. The compiler enforces the contract.</p>
+                            <pre class="p-3 rounded bg-black/50 font-mono text-xs text-purple-200 overflow-x-auto"><code><span class="text-purple-400">fn</span> fetch_user(id: Number) -> Text:
+    <span class="text-cyan-300">uses</span> network
+    <span class="text-purple-400">return</span> http_get(<span class="text-green-300">"api/user/{id}"</span>)
+<span class="text-purple-400">end</span></code></pre>
+                        </div>
+
+                        <div class="space-y-2">
+                            <h3 class="font-bold text-purple-300">2. Live-Link Reactive UI (UI:)</h3>
+                            <p class="text-xs text-gray-400">Bind values with <code class="text-purple-300">{variable}</code>. Events call functions.</p>
+                            <pre class="p-3 rounded bg-black/50 font-mono text-xs text-purple-200 overflow-x-auto"><code><span class="text-pink-400">UI:</span>
+  &lt;button click=<span class="text-green-300">"increment"</span>&gt;
+    Clicked {clicks} times
+  &lt;/button&gt;
+<span class="text-purple-400">end</span></code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BY THE NUMBERS -->
+                <div class="glow-card p-6 space-y-6">
+                    <div class="border-b border-purple-500/20 pb-4">
+                        <h2 class="text-lg font-bold tracking-wide flex items-center space-x-2 text-purple-200">
+                            <span>📊</span>
+                            <span>BY THE NUMBERS</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 rounded-xl bg-black/40 border border-purple-500/20 text-center">
+                            <div class="text-2xl font-extrabold text-green-400">296</div>
+                            <div class="text-xs text-gray-400 mt-1">Tests Passed</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-black/40 border border-purple-500/20 text-center">
+                            <div class="text-2xl font-extrabold text-yellow-400">3</div>
+                            <div class="text-xs text-gray-400 mt-1">Tests Skipped</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-black/40 border border-purple-500/20 text-center">
+                            <div class="text-2xl font-extrabold text-cyan-400">90.48%</div>
+                            <div class="text-xs text-gray-400 mt-1">Branch Coverage</div>
+                        </div>
+                        <div class="p-4 rounded-xl bg-black/40 border border-purple-500/20 text-center">
+                            <div class="text-2xl font-extrabold text-purple-400">6+</div>
+                            <div class="text-xs text-gray-400 mt-1">Targets Planned</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="text-center pt-8 border-t border-purple-500/20 space-y-2">
+            <div class="inline-flex items-center space-x-2 text-sm font-semibold text-yellow-400">
+                <span>⭐</span>
+                <span>SPEC FIRST. VERIFIED ALWAYS. RUN ANYWHERE.</span>
+            </div>
+            <p class="text-xs text-gray-400">Built with ❤️ by the OmniScript Community.</p>
+        </footer>
+
+    </div>
+</body>
+</html>
