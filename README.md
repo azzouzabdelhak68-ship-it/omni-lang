@@ -1,105 +1,166 @@
-# OmniScript
+<div align="center">
 
-> An **AI-first** programming language defined by a single spec, compiled through an intermediate representation (OMNI MIR) to four back-ends: JavaScript, Native (C + Flecs ECS), WebAssembly, and Python.
+# 🌌 OmniScript
 
-[![CI](https://github.com/azzouzabdelhak68/omniscript-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/azzouzabdelhak68/omniscript-lang/actions)
-[![Docs](https://github.com/azzouzabdelhak68/omniscript-lang/actions/workflows/docs.yml/badge.svg)](https://github.com/azzouzabdelhak68/omniscript-lang/actions)
+**The AI-First Programming Language**
+
+*One `.omni` file is a complete app. Powered by a single robust specification, compiled through an intermediate representation (OMNI MIR) to four optimized targets.*
+
+[Explore Spec](OMNI_SPEC.md) • [Our Story](OMNI_HISTORY.md) • [Browse Docs](docs/INDEX.md)
+
+<br>
+
+[![CI Status](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions)
+[![Docs Status](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions/workflows/docs.yml/badge.svg)](https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%252B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%252B-blue.svg)](https://www.python.org/downloads/)
+
+</div>
 
 ---
 
-## 🌟 Core Philosophy
+## 🎨 Unified Architecture
 
-OmniScript is designed from first principles to be **bulletproof for AI agents** and **delightful for humans**:
-1. **Unified Syntax & Universal Blocks**: Every block (conditionals, functions, UI, 3D scenes) follows the exact same rule: header, standalone colon (`:`), body, and `end`. Zero indentation ambiguity.
-2. **Checked Effects (MANDATORY)**: Functions explicitly declare capabilities (`uses network`, `reads file`, `pure`). The compiler enforces these as truth—side effects cannot slip past unnoticed.
-3. **Reactive Live-Link UI (`UI:`)**: A single `.omni` file is a complete app. Logic variables bind to HTML slots automatically and batch-update at the end of blocks.
-4. **Built-in 3D Engine (`scene:`)**: Three.js powered 3D scenes out of the box with live-linked attributes (`box`, `sphere`, `light`, `camera`).
-5. **Multi-Backend Compilation**: Write once, compile and run across JS (Node/Bun/browser), Native (C + Flecs ECS), WebAssembly (WASI/browser), and Python (CPython/Pyodide).
-6. **The `omni` Compiler API**: Machine-readable diagnostics (`omni.diagnostic`) and symbol interrogation (`omni inspect symbol`) built specifically for AI tool use.
+OmniScript uses **one front-end, one middle representation (OMNI MIR), and four target lanes**. This unique architecture ensures code behavior is 100% consistent across every engine.
+
+```mermaid
+flowchart TD
+    %% Custom Styles
+    classDef source fill:#1e1e2e,stroke:#cdd6f4,stroke-width:1px,color:#cdd6f4;
+    classDef frontend fill:#313244,stroke:#f38ba8,stroke-width:2px,color:#f38ba8,font-weight:bold;
+    classDef mir fill:#f38ba8,stroke:#ffffff,stroke-width:2px,color:#ffffff,font-weight:bold;
+    classDef backend fill:#11111b,stroke:#89b4fa,stroke-width:1.5px,color:#89b4fa;
+    classDef target fill:#181825,stroke:#a6e3a1,stroke-width:1px,color:#a6e3a1;
+
+    A[app.omni Source File]:::source --> B[Front-End Parser & Type Checker]:::frontend
+    
+    subgraph Front-End [Compilation Pipeline]
+        B -->|Symbol Resolution| C[Effect & Assertion Analyzer]:::frontend
+        C -->|Static Verification| D((OMNI MIR)):::mir
+    end
+
+    D --> E[JavaScript Emitter]:::backend
+    D --> F[WebAssembly Emitter]:::backend
+    D --> G[C99 Emitter]:::backend
+    D --> H[Python Emitter]:::backend
+
+    subgraph Targets [Runtime Environments]
+        E --> I[Browser DOM & Node.js]:::target
+        F --> J[WASI Server & Edge]:::target
+        G --> K[Flecs ECS & Native Desktop]:::target
+        H --> L[Pyodide & CPython Learn]:::target
+    end
+```
 
 ---
 
-## 🚀 Quick Example (`app.omni`)
+## ⚡ Pillars of OmniScript
+
+### 1. Checked Effects & Capabilities
+Side effects are not left to chance. Every function must declare its capabilities (`uses network`, `reads file`, or `pure`). The compiler statically enforces these contracts—a `pure` function is mathematically guaranteed to have zero side effects.
 
 ```omni
-# A complete OmniScript app with logic, UI, and state
+# Declares network access. Calling filesystem I/O inside will fail compile time.
+fn fetch_user(id: Number) -> Text:
+    uses network
+    return http_get("api/user/{id}")
+end
+```
 
+### 2. Live-Link Reactive UI (`UI:`)
+No complex React setup or state-management boilerplate. HTML elements instantly bind to variables using `{variable}` value slots and dispatch events using `click="function"`. Renders are automatically batched at block boundaries to prevent flicker and micro-stutters.
+
+```omni
 when app starts:
-    count = 0
+    clicks = 0
 end
 
 fn increment() -> None:
     pure
-    count = count + 1
+    clicks = clicks + 1
 end
 
 UI:
-<div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
-    <h1>Counter App</h1>
-    <p>Current count: <strong>{count}</strong></p>
-    <button click="increment">Increment</button>
+<div class="card">
+    <button click="increment">Clicked {clicks} times</button>
 </div>
 end
 ```
 
+### 3. Native 3D Graphic Integration (`scene:`)
+Build visual, spatial tools with three-dimensional components built into the language. Live-linked values apply seamlessly to meshes, cameras, and lighting.
+
+```omni
+scene:
+    box size="2" color="{my_color}" pos="0,1,0" click="change_color"
+    light type="directional" intensity="1.5"
+end
+```
+
 ---
 
-## 🛠️ The `omni` CLI Tool
+## 🗺️ Execution Roadmap (v1.0 → v5)
+
+We track progress with uncompromising, automated Quality Gates (95% Branch Coverage, 90% Mutation Score, and strict static analysis):
+
+| Stage | Scope / Features | Status |
+| :---: | | :---: |
+| **v1.0** | **Core JS MVP**: Universal `:` blocks, Checked Effects, Live-Link DOM, basic compiler | **COMPLETE** |
+| **v2.0** | **Loops & 3D**: Loop iteration, Three.js 3D primitives, Struct Custom Types | **COMPLETE** |
+| **v3.0** | **Native Systems & WASM**: C99 emitter, Flecs ECS, Bevy Rust, browser WebAssembly | **COMPLETE** |
+| **v4.0** | **SMT Proofs & AI Tooling**: Static contract validation (Z3), LSP diagnostics, automatic fixes | **COMPLETE** |
+| **v5.0** | **Platform Maturity**: Self-hosting, Visual Editor, Distributed Actor Model | *In Progress* |
+
+---
+
+## 🛸 The `omni` CLI Interface
+
+A CLI built specifically with **AI-first inspection APIs** so LLM agents can query symbols, debug stack traces, and apply structured syntax fixes automatically.
 
 ```bash
-# Check syntax, types, and effects
-omni check app.omni
-
-# Run the app (via JS / Node runtime)
-omni run app.omni
-
-# Interrogate symbols for AI agents / tooling
-omni inspect symbol app.omni increment
-
-# Verify assertion contracts statically via Z3 SMT solver
+# Verify static assertion contracts using the SMT solver
 omni verify app.omni
 
-# Build for specific target backends (native, web, js, python, wasm)
-omni build app.omni --target js
+# Run the interactive LSP server
+omni lsp
+
+# Query compiler metadata about a specific function
+omni inspect symbol app.omni fetch_user
 ```
 
 ---
 
-## 📂 Repository Structure
+## 🌐 Backend Capabilities Matrix
 
-```
-omniscript-lang/
-├── omni_compiler/     # Compiler frontend, MIR, type checker, effect analyzer, emitters
-│   ├── lexer.py       # Universal colon tokenizer
-│   ├── parser.py      # EBNF-compliant block parser
-│   ├── checker.py     # Name resolution, type checking & effect enforcement
-│   ├── mir.py         # OMNI MIR serializable representation
-│   ├── c_emitter.py   # C99 + Flecs ECS emitter
-│   ├── rust_emitter.py# Rust + Bevy ECS emitter
-│   ├── wasm_emitter.py# WebAssembly emitter
-│   ├── smt.py         # Z3 SMT contract verification
-│   ├── ai_tools.py    # AI tooling (suggest fix, generate test, trace execution)
-│   └── cli.py         # The `omni` CLI tool
-├── packages/          # OMNISYS modular standard library
-├── docs/              # Comprehensive architecture and module documentation
-├── examples/          # Sample .omni applications
-├── tests/             # Test suite (pytest + hypothesis property tests)
-├── OMNI_SPEC.md       # The single official language specification
-└── OMNI_HISTORY.md    # The story of how OmniScript was created
+Different backends provide isolated, compile-time checked hardware capabilities:
+
+| Capability | Native C | WASM | JavaScript | Python |
+| :--- | :---: | :---: | :---: | :---: |
+| **Network** | 🟢 Yes | 🟢 WASI | 🟢 Yes | 🟢 Yes |
+| **Filesystem** | 🟢 Yes | 🟢 WASI | 🟢 Node | 🟢 Yes |
+| **GPU/Graphics** | 🟢 Yes | 🟢 WebGPU | 🟢 WebGL | 🔴 No |
+| **Processes** | 🟢 Yes | 🔴 No | 🔴 No | 🔴 No |
+
+---
+
+## 🚀 Getting Started
+
+To install dependencies and run conformance tests:
+
+```bash
+# Clone the repository
+git clone https://github.com/azzouzabdelhak68-ship-it/omni-lang.git
+cd omni-lang
+
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run the complete compiler test suite
+pytest
 ```
 
 ---
 
-## 📖 Documentation & Spec
-
-- **Language Specification**: Read [OMNI_SPEC.md](OMNI_SPEC.md) for the complete normative definition.
-- **Story & Origins**: Read [OMNI_HISTORY.md](OMNI_HISTORY.md) for how the language came to be.
-- **Documentation Index**: Browse [docs/INDEX.md](docs/INDEX.md) for architecture, decisions, and OMNISYS module guides.
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See [LICENSE](LICENSE) for more information.
+<div align="center">
+Distributed under the MIT License. Created with passion by azzouzabdelhak68-ship-it.
+</div>
