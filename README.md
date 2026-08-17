@@ -124,18 +124,6 @@ end
 
 ---
 
-## 🗺️ Roadmap
-
-<td>| Stage | Scope | Status |</td>
-| :---: | | :---: |
-<td>| **v1** | Core JS MVP: universal `:` blocks, checked effects, live-link DOM, CLI | ✅ Complete |</td>
-| **v2** | Loops, Three.js 3D primitives, struct custom types | ✅ Complete |
-| **v3** | C99 + Flecs, Rust + Bevy, WASM targets, cross-backend conformance | ✅ Complete |
-| **v4** | Z3 SMT contract proofs, LSP, automatic fixes, test generation | ✅ Complete |
-| **v5** | Self-hosting compiler, visual editor, distributed actors | ✅ Complete |
-| **v6** | OMNISYS platform: `import OMNISYS`, module registry, stdlib | 🚧 In progress |
-| **v7** | Ecosystem benchmark: 31 projects measuring AI ↔ language friction | 📋 Planned |
-
 ---
 
 ## 🛠️ The `omni` CLI
