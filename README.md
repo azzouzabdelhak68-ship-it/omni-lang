@@ -196,5 +196,5 @@ pytest
 ---
 
 <div align="center">
-Distributed under the MIT License. Created with passion by azzouzabdelhak68-ship-it.
+Distributed under the MIT License. Created by AZZOUZ abdelhak.
 </div>
