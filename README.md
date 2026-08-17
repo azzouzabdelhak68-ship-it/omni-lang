@@ -126,9 +126,9 @@ end
 
 ## 🗺️ Roadmap
 
-| Stage | Scope | Status |
+<td>| Stage | Scope | Status |</td>
 | :---: | | :---: |
-| **v1** | Core JS MVP: universal `:` blocks, checked effects, live-link DOM, CLI | ✅ Complete |
+<td>| **v1** | Core JS MVP: universal `:` blocks, checked effects, live-link DOM, CLI | ✅ Complete |</td>
 | **v2** | Loops, Three.js 3D primitives, struct custom types | ✅ Complete |
 | **v3** | C99 + Flecs, Rust + Bevy, WASM targets, cross-backend conformance | ✅ Complete |
 | **v4** | Z3 SMT contract proofs, LSP, automatic fixes, test generation | ✅ Complete |
