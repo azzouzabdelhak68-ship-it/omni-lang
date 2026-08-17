@@ -179,51 +179,7 @@ end
 
 ---
 
-## 📊 Roadmap & Milestones
 
-<table style="width: 100%; border-collapse: collapse; background: #0f0f1b; border: 1px solid rgba(168,85,247,0.2); border-radius: 12px; overflow: hidden;">
-  <thead>
-    <tr style="background: #1e1e3f; color: #e879f9; text-align: left; font-family: monospace; font-size: 13px;">
-      <th style="padding: 12px 16px;">STAGE</th>
-      <th style="padding: 12px 16px;">MILESTONE & SCOPE</th>
-      <th style="padding: 12px 16px;">STATUS</th>
-    </tr>
-  </thead>
-  <tbody style="color: #cbd5e1; font-size: 14px;">
-    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
-      <td style="padding: 12px 16px; font-weight: bold; color: #fff; font-family: monospace;">v1</td>
-      <td style="padding: 12px 16px;">Core JS MVP: universal blocks, checked effects, live-link DOM, CLI</td>
-      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
-    </tr>
-    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
-      <td style="padding: 12px 16px; font-weight: bold; color: #fff; font-family: monospace;">v2</td>
-      <td style="padding: 12px 16px;">Native + WASM lanes: C99, WebAssembly, structural types</td>
-      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
-    </tr>
-    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
-      <td style="padding: 12px 16px; font-weight: bold; color: #fff; font-family: monospace;">v3</td>
-      <td style="padding: 12px 16px;">SMT + AI Tooling: Z3 verification, LSP server, AST analysis</td>
-      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
-    </tr>
-    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
-      <td style="padding: 12px 16px; font-weight: bold; color: #fff; font-family: monospace;">v4</td>
-      <td style="padding: 12px 16px;">Self-Hosting & Visual Editor: block editor, 296 tests, 90% coverage</td>
-      <td style="padding: 12px 16px;"><span style="background: #022c22; color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">✅ COMPLETE</span></td>
-    </tr>
-    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
-      <td style="padding: 12px 16px; font-weight: bold; color: #fff; font-family: monospace;">v5</td>
-      <td style="padding: 12px 16px;">OMNISYS Platform: distributed actors, cloud modules, standard library</td>
-      <td style="padding: 12px 16px;"><span style="background: #422006; color: #fbbf24; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">🚧 IN PROGRESS</span></td>
-    </tr>
-    <tr style="border-top: 1px solid rgba(168,85,247,0.1);">
-      <td style="padding: 12px 16px; font-weight: bold; color: #fff; font-family: monospace;">v6</td>
-      <td style="padding: 12px 16px;">Ecosystem Benchmark: 31 production simulations & friction analysis</td>
-      <td style="padding: 12px 16px;"><span style="background: #172554; color: #60a5fa; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">📋 PLANNED</span></td>
-    </tr>
-  </tbody>
-</table>
-
----
 
 ## 📈 By The Numbers
 
