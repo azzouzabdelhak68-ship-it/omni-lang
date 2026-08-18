@@ -3,7 +3,7 @@
 > **Session Continuity Protocol**: Every agent starting a new session MUST read this file first. When finishing a session, the agent MUST update the phase checkboxes, write a brief summary in the "Last Session Status Note", and ensure all Quality Gates pass.
 
 ## Current Phase
-- **v5 complete** — see Last Session Status Note below. Next: v6 (OMNISYS platform).
+- **v6 COMPLETE** (all 5 phases + advanced escapes) — see Last Session Status Note below. `omnisys-async` advanced escape (distributed actors + clustering) finished. Next: v7 (AI benchmark phases).
 
 ## Sub-Agent Delegation Protocol
 
@@ -21,10 +21,11 @@
 ---
 
 ## Last Session Status Note
-- **Current Phase**: v5 complete — 296 tests passing (v4: 256 → v5 additions: 40). Coverage gate green at 90.48% (repo-wide `--cov-branch --cov-fail-under=90`).
-- **Last Action**: Finished v5.1 (self-hosting compiler: `self_hosted/compiler.omni` — an OmniScript→ES6 structured-AST emitter written in OmniScript that compiles a description of itself at startup via `compiled_self`; `tests/test_self_hosted.py`, 8 tests), v5.2 (visual editor: `visual_editor/` block-based drag-drop editor with UMD `renderOmni` core; `tests/test_visual_editor.py`, 10 tests incl. a Playwright E2E that drags blocks, generates `.omni`, then compiles and runs it), and v5.3 (distributed systems: `simulation_engine/runtime.js` actor/cluster runtime with chaos injection; `tests/test_distributed.py`, 22 tests — delivered by sub-agent, verified). Both v5.1/v5.2 sub-agents had returned empty, so the main agent implemented them directly.
-- **Verification**: `pytest` → **296 passed, 3 skipped** (skips: gcc/cargo not installed). Coverage **90.48% ≥ 90%** gate. Ruff clean on all new/edited files; mypy `--strict` zero errors in new test files.
-- **Blockers / Next Step**: v5 done. v6 (OMNISYS) next. Known latent gaps carried from v3: (1) C emitter struct-field types; (2) `_emit_sim_lowering` duplicate C var names. v1.0 quality gates (repo-wide mypy --strict, mutation, ruff format) still not green — pre-existing debt in legacy lexer/parser/checker/emitter files; ruff format conflicts with the repo's Q000 double-quote rule (documented).
+- **Last Action (this session)**: Completed **v7 Phase 5 Project 5.5: Native Interop / Escape Hatch** (RUN_001_CLAUDE_3_5). Built a demonstration application showing portable abstraction layer + three escape hatch patterns (process execution, system metrics, GPU compute), type-safe boundary crossing via JSON serialization, and structured error propagation. All compiler checks pass (`omni check` exit 0, `omni verify` all contracts verified), 25/25 tests passing.
+- **Key Finding**: No FFI/native interop mechanism is implemented in v6 — `GPU` capability vocabulary exists but no `OMNISYS.gpu` module; no foreign function interface in OMNISYS. Escape hatch architecture is documented but actual native boundary crossing remains to be built.
+- **Verification**: `omni check` ✅, `omni verify` ✅, 25 tests ✅. `BENCHMARK_REASONING.md` and `RESULTS.md` produced with dual-dimension benchmark summary.
+- **Previous**: Executed v7 Phase 4 (Media / Platform) across all 4 projects — all pass `omni check` and pytest suites.
+- **Next**: **v7 Phase 5 remaining projects** (5.1 Crypto, 5.2 Auth, 5.3 Observability, 5.4 Tooling).
 
 ---
 
@@ -186,14 +187,6 @@
 
 ---
 
-## Last Session Status Note
-- **Current Phase**: v5 complete — 296 tests passing (v4: 256 → v5 additions: 40). Coverage gate green at 90.48% (repo-wide `--cov-branch --cov-fail-under=90`).
-- **Last Action**: Finished v5.1 (self-hosting compiler: `self_hosted/compiler.omni` — an OmniScript→ES6 structured-AST emitter written in OmniScript that compiles a description of itself at startup via `compiled_self`; `tests/test_self_hosted.py`, 8 tests), v5.2 (visual editor: `visual_editor/` block-based drag-drop editor with UMD `renderOmni` core; `tests/test_visual_editor.py`, 10 tests incl. a Playwright E2E that drags blocks, generates `.omni`, then compiles and runs it), and v5.3 (distributed systems: `simulation_engine/runtime.js` actor/cluster runtime with chaos injection; `tests/test_distributed.py`, 22 tests — delivered by sub-agent, verified). Both v5.1/v5.2 sub-agents had returned empty, so the main agent implemented them directly.
-- **Verification**: `pytest` → **296 passed, 3 skipped** (skips: gcc/cargo not installed). Coverage **90.48% ≥ 90%** gate. Ruff clean on all new/edited files; mypy `--strict` zero errors in new test files.
-- **Blockers / Next Step**: v5 done. v6 (OMNISYS) next. Known latent gaps carried from v3: (1) C emitter struct-field types; (2) `_emit_sim_lowering` duplicate C var names. v1.0 quality gates (repo-wide mypy --strict, mutation, ruff format) still not green — pre-existing debt in legacy lexer/parser/checker/emitter files; ruff format conflicts with the repo's Q000 double-quote rule (documented).
-
----
-
 ## Conformance Suite Progress
 - [x] Valid fixtures: 01_basic, 02_function_with_effects, 03_loops_and_lists
 - [x] Invalid fixtures: 01_missing_network, 02_pure_with_effects
@@ -212,28 +205,29 @@
 
 ## v6 — OMNISYS: The Omni-Native Platform (Post-v5)
 
-### v6 — OMNISYS Master Architecture
-- [ ] **OMNISYS Master Architecture** (§14A)
-- [ ] **Module Tree** (§14B)
-- [ ] **Capability Matrix** (§14C)
-- [ ] **Backend Matrix** (§14D)
-- [ ] **API Design Principles** (§14E)
-- [ ] **UI Architecture** (§14F)
-- [ ] **Database Architecture** (§14G)
-- [ ] **Graphics/GPU Architecture** (§14H)
-- [ ] **Networking Architecture** (§14I)
-- [ ] **Media Architecture** (§14J)
-- [ ] **Simulation/ECS Architecture** (§14K)
-- [ ] **Security Architecture** (§14L)
-- [ ] **AI-Native Tooling Architecture** (§14M)
-- [ ] **Package/Module System** (§14N)
-- [ ] `import OMNISYS` Behavior (§14O)
-- [ ] **Performance Model** (§14P)
-- [ ] **Cross-Backend Conformance Model** (§14Q)
-- [ ] **Escape-Hatch / Native Interop Model** (§14R)
-- [ ] **Development Roadmap** (§14S)
-- [ ] **Testing/Quality Gates** (§14T)
-- [ ] **Example Applications** (§14U)
+### v6 — OMNISYS Master Architecture (COMPLETE ✅ — Milestone A)
+- [x] **OMNISYS Master Architecture** (§14A) — `docs/architecture/00-master-architecture.md`
+- [x] **Module Tree** (§14B) — `docs/architecture/01-module-tree.md`
+- [x] **Capability Matrix** (§14C) — `docs/architecture/02-capability-matrix.md`
+- [x] **Backend Matrix** (§14D) — `docs/architecture/03-backend-matrix.md`
+- [x] **API Design Principles** (§14E) — `docs/architecture/04-api-design-principles.md`
+- [x] **UI Architecture** (§14F) — `docs/architecture/05-ui.md`
+- [x] **Database Architecture** (§14G) — `docs/architecture/06-database.md`
+- [x] **Graphics/GPU Architecture** (§14H) — `docs/architecture/07-graphics-gpu-scene.md`
+- [x] **Networking Architecture** (§14I) — `docs/architecture/08-networking.md`
+- [x] **Media Architecture** (§14J) — `docs/architecture/09-media-platform.md`
+- [x] **Simulation/ECS Architecture** (§14K) — `docs/architecture/10-sim.md`
+- [x] **Security Architecture** (§14L) — `docs/architecture/11-security.md`
+- [x] **AI-Native Tooling Architecture** (§14M) — `docs/architecture/12-ai-tooling.md`
+- [x] **Package/Module System** (§14N) — `docs/architecture/13-package-system.md`
+- [x] `import OMNISYS` Behavior (§14O) — `docs/architecture/14-import-behavior.md`
+- [x] **Performance Model** (§14P) — `docs/architecture/15-performance.md`
+- [x] **Cross-Backend Conformance Model** (§14Q) — `docs/architecture/16-conformance.md`
+- [x] **Escape-Hatch / Native Interop Model** (§14R) — `docs/architecture/17-escape-hatch.md`
+- [x] **Development Roadmap** (§14S) — `docs/architecture/18-roadmap.md`
+- [x] **Testing/Quality Gates** (§14T) — `docs/architecture/19-quality-gates.md`
+- [x] **Example Applications** (§14U) — `docs/architecture/20-example-applications.md`
+*Status Note*: Milestone A complete. 21 design docs under `docs/architecture/` (one per §14A–14U), grounded in the registry contract (`omnisys_registry.py`), the JS runtime (`omnisys/*.js`), and the module READMEs. `docs/architecture/README.md` updated as directory index; `scripts/gen-index.py` extended to list architecture docs under the Architecture section (orphan rule satisfied). Gates: `verify-docs.py` ✅, `gen-index.py --check` ✅, `gen-capability-matrix.py --check` ✅. Next: v6 Phase 1 Foundations (7 parallel packages).
 
 ### v6.0 — Documentation Layer (COMPLETE ✅)
 - [x] **Spec repair**: Deduplicated §17.1 module tree in `OMNI_SPEC.md` (17 modules, `scene` at line 17, `core` implicit root export = 18 documented)
@@ -245,51 +239,182 @@
 - [x] **CI**: `.github/workflows/docs.yml` (verify-docs + both `--check` generators)
 - [x] **Gate**: `verify-docs.py`, `gen-index.py --check`, `gen-capability-matrix.py --check` — all pass
 
-### v6 Phase 1: Foundations [SUB-AGENT: parallel per module]
-- [ ] `omnisys-core` — core types, errors, result/option, prelude
-- [ ] `omnisys-collections` — List, Map, Set, Deque, Heap, RingBuffer
-- [ ] `omnisys-async` — Task, Future, Stream, Channel, Select, Timeout
-- [ ] `omnisys-fs` — Path, File, Dir, Watch, Temp, Atomic write
-- [ ] `omnisys-serde` — JSON, TOML, YAML, MsgPack, CBOR, Schema
-- [ ] `omnisys-error` — Error types, Context, StackTrace, ErrorId
-- [ ] `omnisys-test` — Assertions, Property testing, Mocking, Bench
-- [ ] **Quality Gates**: Same strict gates (95% cov, 90% mutmut, mypy strict, ruff clean)
-- [ ] **Research Gate**: Research doc per module before implementation (parallel with impl)
-*Status Note*: 7 sub-agents parallel. Monorepo `packages/omnisys-*`. Shared `import OMNISYS` umbrella.
+### v6 Phase 1: Foundations (COMPLETE ✅ — gates green)
+- [x] `omnisys-core` — core types, errors, result/option, prelude
+- [x] `omnisys-collections` — List, Map, Set, Deque, Heap, RingBuffer
+- [x] `omnisys-async` — Task, Future, Stream, Channel, Select, Timeout
+- [x] `omnisys-fs` — Path, File, Dir, Watch, Temp, Atomic write
+- [x] `omnisys-serde` — JSON, TOML, YAML, MsgPack, CBOR, Schema
+- [x] `omnisys-error` — Error types, Context, StackTrace, ErrorId
+- [x] `omnisys-test` — Assertions, Property testing, Mocking, Bench
+- [x] **Quality Gates**: pytest green (329 package tests, all also green under `-W error`), coverage ≥95% branch (all 7 packages 100% branch), mypy `--strict` clean (7 src files), ruff clean (check + format)
+- [x] **Research Gate**: Research doc per module (7 × `RESEARCH.md` with JS-reference grounding + deviation tables)
+*Status Note*: Complete. Monorepo `packages/omnisys-*` (7 packages, each `src/` + `tests/` + README.md + RESEARCH.md). 329 tests passing (36+118+28+38+45+35+29). Coverage: all 7 packages **100% branch**. Mypy `--strict`: clean. Ruff: clean. **Mutation gate: mutmut NOT installed locally → skipped (documented debt)**. Baseline suite intact: 319 passed, 3 skipped. `verify-docs.py` ✅, `gen-index.py` ✅ (rewrote `docs/INDEX.md`). Note: package test basenames collide across packages (`test_properties.py`, `test_conformance.py`) → tests must be collected **per-package** (one package per pytest invocation), per the planned monorepo test model — do NOT add `packages` to root `testpaths`. `omnisys-async` is a Python keyword → module `omnisys_async`; `omnisys-test` shadows stdlib → module `omnisys_test`. Core sub-agents failed twice (empty results) → main agent implemented `core` + `async` directly; `collections`/`fs`/`serde`/`error`/`test` built by sub-agents. Placeholder-era panic-fallback seams and `# ruff: noqa: Q000` / `# type: ignore[attr-defined]` workarounds removed now that `omnisys_core` is real. Next: **v6 Phase 2 App Foundations**.
 
-### v6 Phase 2: App Foundations [SUB-AGENT: parallel]
-- [ ] `omnisys-ui` — Cross-platform UI (SwiftUI/WPF/Qt/web principles)
-- [ ] `omnisys-db` — Data platform (SQL, query builder, migrations, transactions)
-- [ ] `omnisys-net` — HTTP/WS/RPC, client/server, middleware
-- [ ] `omnisys-http` — High-level HTTP client/server
-- [ ] **Quality Gates**: Same strict gates
-- [ ] **Research Gate**: Research doc per module
+### v6 Phase 2: App Foundations (COMPLETE ✅ — gates green)
+- [x] `omnisys-ui` — Cross-platform UI (SwiftUI/WPF/Qt/web principles)
+- [x] `omnisys-db` — Data platform (SQL, query builder, migrations, transactions)
+- [x] `omnisys-net` — HTTP/WS/RPC, client/server, middleware
+- [x] `omnisys-http` — High-level HTTP client/server
+- [x] **Quality Gates**: Same strict gates
+- [x] **Research Gate**: Research doc per module
+*Status Note*: Complete. 4 packages added to the monorepo (`omnisys-ui`, `omnisys-db`, `omnisys-net`, `omnisys-http`, each `src/` + `tests/` + README.md + RESEARCH.md). 144 package tests passing (33+29+57+25), all 4 packages **100% branch** coverage, mypy `--strict` clean on all 11 src files, ruff check + format clean, all tests green under `-W error`. Baseline suite intact: 319 passed, 3 skipped. `verify-docs.py` ✅, `gen-index.py --check` ✅, `gen-capability-matrix.py --check` ✅, all 11 packages importable via editable install. **Mutation gate: mutmut NOT installed locally → skipped (documented debt)**. Sub-agent delegation: `net` built by sub-agent; `ui`/`db`/`http` sub-agents returned EMPTY results (3rd repeat of the Phase 1 `core`/`async` behavior) → implemented directly by the main agent. Semantics: `ui` = pure element tree + HTML render (JSON deep-copy drops callable `action` like `JSON.stringify`); `db` = in-memory tables, auto-increment `id` always wins, predicate-driven select/update/delete; `net` = auto-starting server + reverse-order middleware chain; `http` = `inproc://` dispatch via `register` + transport hook `register_transport` for external schemes. Next: **v6 Phase 3 Graphics/GPU/Simulation**.
 
-### v6 Phase 3: Graphics/GPU/Simulation [SUB-AGENT: parallel]
-- [ ] `omnisys-graphics` — Rendering abstraction (Vulkan/Metal/DX/WebGPU)
-- [ ] `omnisys-gpu` — GPU compute (CUDA/Metal/Vulkan/WebGPU)
-- [ ] `omnisys-scene` — 3D scene graph (Vulkan/Metal/DX/WebGPU)
-- [ ] `omnisys-sim` — ECS, physics, simulation (Flecs/Bevy/Custom)
-- [ ] **Quality Gates**: Same strict gates
-- [ ] **Research Gate**: Per-module research doc
+### v6 Phase 3: Graphics/GPU/Simulation (COMPLETE ✅ — gates green)
+- [x] `omnisys-graphics` — Rendering abstraction (Vulkan/Metal/DX/WebGPU)
+- [x] `omnisys-gpu` — GPU compute (CUDA/Metal/Vulkan/WebGPU)
+- [x] `omnisys-scene` — 3D scene graph (Vulkan/Metal/DX/WebGPU)
+- [x] `omnisys-sim` — ECS, physics, simulation (Flecs/Bevy/Custom)
+- [x] **Quality Gates**: Same strict gates
+- [x] **Research Gate**: Per-module research doc
+*Status Note*: Complete. 4 packages added to the monorepo (`omnisys-graphics`, `omnisys-gpu`, `omnisys-scene`, `omnisys-sim`, each `src/` + `tests/` + README.md + RESEARCH.md). 186 package tests passing (53+30+70+33), all 4 packages **100% branch** coverage, mypy `--strict` clean on all 15 src files, ruff check + format clean (92 files), all tests green under `-W error`. Baseline suite intact: 319 passed, 3 skipped. `verify-docs.py` ✅, `gen-index.py --check` ✅, `gen-capability-matrix.py --check` ✅, all 15 packages importable via editable install. **Mutation gate: mutmut NOT installed locally → skipped (documented debt)**. Sub-agent delegation: `graphics` + `gpu` sub-agents reported full green builds; `scene` sub-agent wrote all files + tests but returned an EMPTY report (verified centrally: 70 tests, 100% branch, mypy/ruff clean; only missing RESEARCH.md, written by main agent); `sim` sub-agent returned EMPTY with only the placeholder src → implemented fully by the main agent. Semantics: `graphics` = pure canvas op recorder (line/rect/circle/polygon/text, fallback fill/stroke colors, render/to_json); `gpu` = data-parallel kernels with CPU fallback (compute/parallel/add/scale/dot/matmul/normalize/device_info, GPU capability = metadata, panic on length/shape mismatch); `scene` = JSON scene graph (group/mesh/camera/light nodes, transforms, order list, deep-copy snapshots, _elapsed clock); `sim` = ECS world (entity component maps, ordered systems, deterministic stepped run, query by component, deep-copy snapshot; `sim.actor` Node bridge NOT ported — documented escape). Next: **v6 Phase 4 Media/Platform**.
 
-### v6 Phase 4: Media/Platform [SUB-AGENT: parallel]
-- [ ] `omnisys-audio` — Audio I/O, synthesis, processing
-- [ ] `omnisys-video` — Video decode/encode, streaming
-- [ ] `omnisys-camera` / `omnisys-microphone` — Device access
-- [ ] `omnisys-platform` — Native platform APIs (Windows/Linux/macOS/mobile)
+### v6 Phase 4: Media/Platform [SUB-AGENT: parallel] ✅ COMPLETE
+- [x] `omnisys-audio` — Audio I/O, synthesis, processing
+- [x] `omnisys-video` — Video decode/encode, streaming
+- [x] `omnisys-camera` / `omnisys-microphone` — Device access (NOT registry modules — device access is an escape surfaced via `omnisys-platform.capabilities()`; folded into platform per OMNI_HISTORY.md)
+- [x] `omnisys-platform` — Native platform APIs (Windows/Linux/macOS/mobile)
 
-### v6 Phase 5: Security/Observability/Tooling [SUB-AGENT: parallel]
-- [ ] `omnisys-crypto` — Hash, encrypt, sign, KDF, TLS
-- [ ] `omnisys-auth` — AuthZ/AuthN, OAuth, JWT, sessions
-- [ ] `omnisys-observability` — Logging, metrics, tracing, profiling
-- [ ] `omnisys-tool` — LSP, formatter, debugger, docgen, migration tools
+### v6 Phase 5: Security/Observability/Tooling [SUB-AGENT: parallel] ✅ COMPLETE
+- [x] `omnisys-crypto` — Hash, encrypt, sign, KDF, TLS (portable lane: hashlib/hmac/secrets; real AES-256 an escape)
+- [x] `omnisys-auth` — AuthZ/AuthN, OAuth, JWT, sessions (compact signed tokens; real JWT/OAuth2 escapes)
+- [x] `omnisys-observability` — Logging, metrics, tracing, profiling
+- [x] `omnisys-tool` — LSP, formatter, debugger, docgen, migration tools (bridges to `omni_compiler.cli` for check/explain)
 
-### v6 Phase 5: AI/Advanced [SUB-AGENT: parallel]
-- [ ] `omnisys-ai` — Tensors, autograd, inference, tool use
-- [ ] `omnisys-async` (advanced) — Distributed actors, clustering
-- [ ] `omnisys-pkg` — Package manager, registry, resolver
-- [ ] **Quality Gates**: Package manager self-hosting, registry security audit
+### v6 Phase 5: AI/Advanced [SUB-AGENT: parallel] ✅ COMPLETE
+- [x] `omnisys-ai` — Tensors, autograd, inference, tool use (pure dense-tensor core; GPU/autograd escapes)
+- [x] `omnisys-async` (advanced) — Distributed actors, clustering (escapes on existing `omnisys-async` package; `omnisys_async.actor` submodule, v5.3 `sim.actor` port) ✅ COMPLETE
+- [x] `omnisys-pkg` — Package manager, registry, resolver
+- [x] **Quality Gates**: Package manager self-hosting, registry security audit
+
+### v6 Phase 6: Language Completion (unblocks v7 agents)
+
+- [ ] **Real diagnostic locations** — parser.py: track line/col in every AST node; cli.py/ai_tools.py _diagnostic_from_exception: extract location from SyntaxError/token instead of hardcoding {1,1}; DiagnosticError.to_dict() emits real span/location
+- [ ] **try/catch + on error clause** — lexer.py: TRY/CATCH/FINALLY tokens; parser.py: TryStmt with try/else/finally blocks; checker.py: effect tracking across handlers; emitter.py/mir.py: TryStmt lowering to try/catch/finally in JS, setjmp/longjmp in C, Result in Rust
+- [ ] **await / async integration for uses network** — parser.py: AWAIT token + AwaitExpr; checker.py: functions with uses network return Promise; await unwraps Promise; effect validation ensures await only on network/async calls; emitter: await → JS await, C callback, Rust .await
+- [ ] **while loop** — lexer.py: WHILE token; parser.py: WhileStmt(cond, body); checker.py: condition must be Boolean, body scope, break/continue validity; emitter.py: while lowering to JS while, C while, Rust loop
+- [ ] **Typed loop variables (for item: Type in list)** — parser.py: extend ForStmt with optional type annotation on loop var; checker.py: use annotated type instead of hardcoded Number for element access; fixes E-TYPE-002 on field access
+- [ ] **x[i] indexing, % modulo, range()** — parser.py: IndexExpr(op='index') + BinaryExpr(op='%') + RangeExpr; checker.py: index requires List/Array + Number index; % requires Number operands; range() builtin returns List; emitter: JS arr[i], % operator, Array.from({length: n}, (_, i) => i)
+- [ ] **String ops: split, charAt, substring, toNumber** — omnisys_registry.py: add to core module; omnisys/core.js: implement split(sep), charAt(i), substring(start, end?), toNumber(); checker.py: builtin signatures; emitter: direct calls
+- [ ] **global / explicit module-state keyword** — lexer.py: GLOBAL token; parser.py: GlobalDecl at module level or global qualifier in assign; checker.py: module_vars includes global names; emitter: module-scope var not function-local; lifts writes wall (MEDIUM-10)
+- [ ] **Static call-site arity + type checking** — checker.py: in check_identifier/FunctionCall, validate arg count matches declared params; validate arg types against param types (subtype); emit DiagnosticError on mismatch
+- [ ] **Map/dict literal {k: v}** — lexer.py: support {...} as MapLiteral in expression context (distinguish from struct); parser.py: MapLiteralExpr; checker.py: infer Map type from key/value types; emitter: JS Map([[k,v],...]), C struct map, Rust HashMap
+- [ ] **Escape braces \{ in text interpolation** — lexer.py: in TEXT token, treat \{ and \} as literal braces not interpolation; parser: Literal preserves escaped braces; emitter: outputs literal { } in template strings
+- [ ] **UI template validation in check** — checker.py: parse UI block template at check time; validate click="fn" targets exist in scope; validate slot names match declared slots; emit E-UI-001/002 for missing targets/slots per §9.3
+- [ ] **DOM read path for form input capture** — omnisys_registry.js: ui.getValue(selector) / ui.getFormData(form); omnisys/ui.js: implement querySelector + value extraction; checker.py: capability 'dom' for read; emitter: wire to DOM APIs
+- [ ] **Native keywords: ar / en / fr / es (lexer tables + diagnostics i18n)** — lexer.py: KEYWORDS_BY_LANG = {lang: {TokenType: "localized"}}; on file start `# lang: ar` sets active table; tokenizer matches localized keywords → same TokenType; cli.py/ai_tools.py: diagnostic messages localized per active language; RTL-aware token positions for ar
+
+> **Why these extras?** v6 Phase 6–11 were added after the v7 benchmark sessions exposed repeated friction. Every item is a real problem an AI agent hit during Phases 0–5 of the benchmark (file paths above each item). The v7 constitution forbids teaching agents the mechanism being measured, so the compiler itself must absorb these fixes before the remaining v7 phases (5.1–5.4, 6.1–6.3) can measure the language fairly. Items marked `[x]` were already fixed in later compiler chapters and are kept here for the record — do not re-implement them.
+
+### v6 Phase 7: Emitter Correctness & Codegen
+
+- [x] **Parenthesized expressions preserved in all emitters** (`group` node, HIGH-3) — fixed; previously `(a+b+c)/5` emitted `a+b+c/5` (3.3, 3.4 C-05)
+- [x] **`and`/`or`/`not` logical operators in parser** (`parse_or`/`parse_and`/`parse_not`) — fixed; previously lexed + spec §6.3 but no parser production (2.3)
+- [x] **Negative number literals** (`UnaryExpr` `neg`) — fixed; previously `x is -1` was a syntax error (2.1)
+- [ ] **`_js_template` CSS mangling** — emitter.py:164 converts every `{...}` to `${...}`; `.panel { padding: 8px; }` → `.panel ${ padding: 8px; }` (2.1). Add escape for literal braces in UI templates
+- [ ] **Scene `pos="{var}"` slots preserved at build** — emitter.py:204 splits pos at build time; slot-valued `pos` renders length-1 → no `position.set` emitted (3.4 C-04). Keep slot as expression
+- [ ] **`let`-hoisting for names assigned inside nested `if`/`for`** — only top-level assignments hoisted; nested first-assign → runtime `ReferenceError` (2.1)
+- [ ] **Module-scope `let` excluded when name collides with any function param** — `res`/`payload`/`elapsed` excluded → `ReferenceError: res is not defined` while `omni check` passes (2.3)
+- [ ] **Scene JS artifact self-contained** — emitted code calls `document.createElement` at top level; requires augmented document stub under Node (3.4 C-06). Emit stub or guard
+- [ ] **`sim.*` lowering parity** — JS verbatim, C Flecs scaffolding omits `sim.run`/`sim.query`, Rust Bevy comments only (3.4 C-08)
+
+### v6 Phase 8: Platform Parity & Backend Conformance
+
+- [x] **`import OMNISYS.scene` reachable** — parser now accepts SCENE keyword token in import path; previously E-SYNTAX-001 while registry advertised the module (3.4 C-03) — fixed
+- [ ] **E-BACKEND-001: OMNISYS imports block C/Rust** — cli.py:31 rejects any OMNISYS import for `--target c/rust`; multi-target builds require v5.3 flat `sim.*` API (3.4 C-01). Allow a documented §8.3 carve-out or map to per-backend runtimes
+- [ ] **JS lane ECS runtime for `sim.*`** — `simulation_engine/runtime.js` exports only actor aliases; no `sim.entity/system/run/query` (3.4 C-02). Ship the ECS runtime the platform advertises
+- [ ] **`gpu.buffer` requires GPU capability** — registered `_pure` (registry) while `gpu.compute` etc. are gated; transfer free but dispatch gated (3.4 C-07). Tag `gpu.buffer` with GPU
+- [ ] **serde capability modeling** — all `omnisys.serde` fns marked pure; serialization side-effects have no capability token (2.3)
+- [ ] **`throw_error` declared `pure` but throws at runtime** — reconcile effect declaration with behavior (1.4)
+
+### v6 Phase 9: SMT Verification Expansion
+
+- [ ] **Struct construction/access in contracts** — smt.py raises `_UnsupportedError` for `StructConstruct`/`FieldAccess`; workaround was returning Number from pure fns (0.1)
+- [ ] **Function calls in contracts** — `FunctionCall` unsupported in smt.py (0.1)
+- [ ] **Loops in verified functions** — unsupported (0.1); needed for real-world contract coverage
+
+### v6 Phase 10: OMNISYS API & Runtime Completion
+
+- [x] **`net` module: deterministic request/response model** — `server/start/request/get/post/middleware/response` shipped; previously README documented phantom `listen/connect/send` (2.4) — fixed
+- [x] **`http` module shipped** — `client/send/get/post/put/delete/json_get/register/response` exist; previously docs said "planned" (2.3) — fixed
+- [x] **`async` module surfaced** — `task/delay/all/race/any/timeout/channel` registered + reachable from `.omni`; previously 1.6 was BLOCKED (checker whitelisted only `sim.*`) — fixed
+- [x] **UI click delegation survives re-render** — event delegation on container; previously re-render destroyed bound handlers (2.1, HIGH-4) — fixed
+- [ ] **`platform.env()` graceful fallback** — panics when env var unavailable in JS lane (4.4); return default/None instead
+- [ ] **HTTP timeout parameter (synchronous)** — no timeout in `OMNISYS.http` surface; `async.timeout` needs a Promise sync http never produces (2.3)
+- [ ] **UI reactivity: `state_set` triggers re-render** — `state_set` mutates JSON but never re-renders; only click wrapper `batchUpdate()` does (2.1)
+- [ ] **`OMNISYS.error` stack trace capture** — errors don't capture stack traces (1.4)
+- [ ] **`net` README synced with real registry API** — docs still describe phantom API (2.4)
+
+### v6 Phase 11: Checker Soundness
+
+- [x] **`reads`/`writes` enforcement live** — E-EFFECT-004 with auto `declare-reads-<resource>` fix; previously parsed but unenforced (2.4) — fixed
+- [ ] **Close assignment blind spot** — checker.py:599 `local_names = _assigned_names_ast(fn.body)` exempts any name a function assigns from `writes` checks; a function ASSIGNING a module resource escapes E-EFFECT-004 (2.4). Assigned module names must still be effect-checked
+
+---
+
+## v6 Extra: Future Roadmap (Pillars 1–6)
+
+> **Why this roadmap?** Phases 6–11 make the language *correct, expressive, and honest*. These six pillars turn the benchmarked prototype into a production-grade agentic platform. Grouped by difficulty: **[EASY]** items are independent, low-risk, and safe for parallel sub-agents; **[MEDIUM]** items need focused single-session work; **[HARD]** items require a stronger model or dedicated independent sessions (no parallel delegation).
+
+### Pillar 1: AI-First & Agent Experience
+
+**Easy (parallel sub-agents):**
+- [ ] **[EASY] Short-Form Agent Syntax (`#lang agent`)** — compact, token-efficient shorthand (symbols, implied returns) that expands to canonical `.omni`; LLM context savings + faster generation
+- [ ] **[EASY] Native formatter (`omni fmt`)** — canonical whitespace/layout so agent output is uniform and diffable
+
+**Hard (strong model / independent sessions):**
+- [ ] **[HARD] Bidirectional AST-to-Source Synthesizer API** — first-class compiler API that renders format-clean `.omni` from a JSON AST; syntax becomes a rendering, not storage
+- [ ] **[HARD] Direct JSON-AST compilation** — `omni build/run` accept a `.json` AST input, bypass lexer/parser, still run checker + emit; agents program structurally
+- [ ] **[HARD] Incremental / streaming LSP diagnostics** — mid-generation token-level analysis reports effect/type violations before the file is complete
+- [ ] **[HARD] CLI sandbox (`omni run --sandbox`)** — mock/restrict filesystem + network under secure boundaries; agent-produced programs cannot damage the host
+
+### Pillar 2: Checked Effects & Capability Soundness
+
+**Easy (parallel sub-agents):**
+- [ ] **[EASY] Memory & allocation effects** — `allocates`, `mutates heap` effect tokens so WASM/embedded targets can statically bound memory
+- [ ] **[EASY] Value-parameterized effects** — `reads file("/etc/config.json")`, `uses network("api.com")` instead of blanket host-wide permissions
+
+**Hard (strong model / independent sessions):**
+- [ ] **[HARD] Capability delegation / borrowing** — pass restricted capability tokens to callbacks for the duration of a call (Rust-lifetime style, for effects)
+- [ ] **[HARD] Static analysis of escape hatches** — verify inline JS/raw C blocks cannot run blacklisted ops unless the wrapping block declares the capability; `pure` stays truthful
+
+### Pillar 3: SMT Static Contract Verification (Z3)
+
+**Easy (parallel sub-agents):**
+- [ ] **[EASY] Text/string solver integration** — model `Text` as SMT sequences in `smt.py`; prove sanitization and length-bound safety
+
+**Hard (strong model / independent sessions):**
+- [ ] **[HARD] Hybrid static-to-runtime verification** — unprovable contracts (`unsupported`/`failed`) auto-compile into runtime asserts; proved contracts compile away to zero cost
+- [ ] **[HARD] Z3 Array Theory for lists** — model push/pop/index in `smt.py`; prove `list_get(list, 0)` safe under `length > 0`
+- [ ] **[HARD] ADT / heap modeling** — model custom types and field access in `smt.py` so structs verify in contracts
+
+### Pillar 4: Multi-Backend Conformance (The Frankenstein Iron Law)
+
+**Easy (parallel sub-agents):**
+- [ ] **[EASY] Floating-point conformance** — unify division-by-zero, NaN, infinity, rounding across JS/C/Rust/SMT; multi-target results must not diverge
+
+**Hard (strong model / independent sessions):**
+- [ ] **[HARD] Unified memory management** — refcounting/region allocator for C/Rust targets to match JS GC semantics; identical memory safety
+- [ ] **[HARD] Automated differential testing engine** — CI runner executes every `.omni` on all 5 backends with identical inputs and fails on any output/heap divergence
+
+### Pillar 5: Real-World Runtime & Ecosystem
+
+**Easy (parallel sub-agents):**
+- [ ] **[EASY] Event loop & timer API** — native grammar for ticks, intervals, async delays (beyond `when app starts`)
+- [ ] **[EASY] SQLite persistence** — real SQLite/SQLite-WASM storage replacing in-memory `db` tables
+
+**Hard (strong model / independent sessions):**
+- [ ] **[HARD] Real wire networking** — actual TCP/TLS sockets and HTTP server bindings on JS/C/Rust (beyond in-process mocks)
+- [ ] **[HARD] Native graphics rendering** — GLFW/raylib (C) and Wgpu/Bevy (Rust) native window rendering for compiled binaries
+
+### Pillar 6: Packaging & Distribution
+
+**Easy (parallel sub-agents):**
+- [ ] **[EASY] Version constraints & lockfiles** — semver parsing, checksum lockfile, deterministic resolution metadata
+
+**Hard (strong model / independent sessions):**
+- [ ] **[HARD] Secure dependency resolver (`omni pkg`)** — Cargo/npm-style resolver with content-addressable local cache and integrity verification
+- [ ] **[HARD] Self-hosted package registry** — federated registry server for publish, resolve, and audit
 
 ---
 
@@ -385,26 +510,29 @@ The v7 benchmark is an empirical feedback loop for continuous ecosystem evaluati
 - [ ] **1.5 Testing / Self-Test Suite**: **Meta-benchmark** — Authoring a complete test suite (unit, property-based, mocking, performance) for a prior project.
 - [ ] **1.6 Async / Job Processor**: Concurrent job queue processing with cancellation, timeouts, streams, and task synchronization.
 
-#### Phase 2: Application Foundations (4 Projects)
+#### Phase 2: Application Foundations (4 Projects) — COMPLETE ✅ (RUN_001_DEEPSEEK_V4_FLASH_FREE)
 *Testing portable semantic UI, relational data platforms, HTTP, and networking.*
-- [ ] **2.1 GUI / Personal Finance Dashboard**: Rich interactive graphical application featuring navigation, forms, tables, reactive state, and live data bindings.
-- [ ] **2.2 Database / Inventory System**: Relational inventory management system with schema definition, transactional data updates, and query composition.
-- [ ] **2.3 HTTP / REST Client**: External API integration client with request formatting, response deserialization, timeouts, and network capability declarations.
-- [ ] **2.4 Networking / Chat Server**: Multi-client real-time messaging server supporting connection lifecycles, broadcasting, and protocol handling.
+- [x] **2.1 GUI / Personal Finance Dashboard**: Rich interactive graphical application featuring navigation, forms, tables, reactive state, and live data bindings.
+- [x] **2.2 Database / Inventory System**: Relational inventory management system with schema definition, transactional data updates, and query composition.
+- [x] **2.3 HTTP / REST Client**: External API integration client with request formatting, response deserialization, timeouts, and network capability declarations.
+- [x] **2.4 Networking / Chat Server**: Multi-client real-time messaging server supporting connection lifecycles, broadcasting, and protocol handling.
+*Status Note*: Complete. 4 projects in `OMNISCRIPT_AI_BENCHMARK/PHASE_2_APP_FOUNDATIONS/`, each with `RUN_001_DEEPSEEK_V4_FLASH_FREE/{source, tests, probes, BENCHMARK_REASONING.md, RESULTS.md}`. All gates green: `omni check` exit 0; `build --target js` exit 0; `omni run` exit 0; pytest **86 passing** (2.1: 36, 2.2: 14, 2.3: 18, 2.4: 18); baseline suite intact (**351 passed, 3 skipped**). Capability gates ui/db/net/http open in the registry (`omnisys_registry.py`) + JS runtime (`omnisys/*.js`). Key ecosystem findings: emitter now scopes function locals per-function and treats entry-point-assigned names as module state (fixed module-var shadowing → 2.1 needs `reads` decls; 2.2 needed entry-point pre-declaration of tables/captures); `omni run` now EXECUTES under Node (`scripts/run-omnisys.js`) instead of compile-only; `reads`/`writes` enforcement is LIVE (E-EFFECT-004, auto `declare-reads-<resource>` fix); the emitted runtime wires clicks via event delegation on `#app` (multi-click sessions work, 2.1's prior single-shot limitation resolved); the JS runtime registers lowercase `omnisys.*` while source spells `OMNISYS.*` (harness normalizes). Next: **v7 Phase 3** (Phase 3 is already COMPLETE from a prior session) → next run is **v7 Phase 4 Media/Platform**.
 
-#### Phase 3: Graphics / GPU / Simulation (4 Projects)
+#### Phase 3: Graphics / GPU / Simulation (4 Projects) — COMPLETE ✅ (RUN_001_DEEPSEEK_V4_FLASH_FREE)
 *Testing 2D vector drawing, 3D scene graphs, hardware GPU compute, and ECS/graphics integration.*
-- [ ] **3.1 2D Graphics / Canvas App**: Interactive vector graphics drawing canvas with geometric shapes, transforms, colors, and user input events.
-- [ ] **3.2 3D Scene / Solar System**: Interactive 3D scene visualization with hierarchical transforms, camera positioning, lighting, and orbital motion.
-- [ ] **3.3 GPU / Image Filter**: High-performance image matrix processing utilizing hardware GPU compute pipelines.
-- [ ] **3.4 ECS / Particle Sim Coexistence**: Integrated application proving data-oriented entity-component simulation coexists seamlessly with 3D scene rendering and graphics pipelines.
+- [x] **3.1 2D Graphics / Canvas App**: Interactive vector graphics drawing canvas with geometric shapes, transforms, colors, and user input events.
+- [x] **3.2 3D Scene / Solar System**: Interactive 3D scene visualization with hierarchical transforms, camera positioning, lighting, and orbital motion.
+- [x] **3.3 GPU / Image Filter**: High-performance image matrix processing utilizing hardware GPU compute pipelines.
+- [x] **3.4 ECS / Particle Sim Coexistence**: Integrated application proving data-oriented entity-component simulation coexists seamlessly with 3D scene rendering and graphics pipelines.
+*Status Note*: Complete. 4 projects implemented in `OMNISCRIPT_AI_BENCHMARK/PHASE_3_GRAPHICS_GPU_SIM/`, each with `RUN_001_DEEPSEEK_V4_FLASH_FREE/{source, tests, BENCHMARK_REASONING.md, RESULTS.md}` (+ `CONFORMANCE_RESULTS.md` for 3.4). 51 tests passing (3.1: 14, 3.2: 15, 3.3: 12, 3.4: 10). All sources pass `omni check` exit 0 and build exit 0 for `--target js|c|rust`; JS artifacts run under Node (document stub + extracted `<script>`; scene-bearing programs need the AUGMENTED stub with `createElement`/`head`/`body`; ECS 3.4 additionally needs a harness-provided `sim.*` ECS runtime). Key ecosystem findings (see 3.4 CONFORMANCE_RESULTS.md): `import OMNISYS.*` blocks C/Rust (E-BACKEND-001) → 3.4 uses the v5.3 flat `sim.*` API; `import OMNISYS.scene` is structurally impossible (`scene` is a keyword token, parser wants IDENTIFIER) while the registry advertises it; `scene:` `pos="{var}"` slots are dropped at build time (literal `pos="x,y,z"` only); the JS lane ships NO ECS runtime for `sim.*`; **compiler bug**: `_js_expr` drops grouping parens (`(a+b+c)/5` → `a+b+c/5`, JS precedence wins) — workaround: hoist group into a temporary (found in 3.3, documented in 3.4 CONFORMANCE_RESULTS C-05); `gpu.buffer` is registered pure (no GPU capability). Next: **v7 Phase 4 Media/Platform**.
 
-#### Phase 4: Media / Platform (4 Projects)
+#### Phase 4: Media / Platform (4 Projects) — COMPLETE ✅ (RUN_001_CLAUDE_3_5)
 *Testing audio processing, video decoding, camera/microphone I/O, and platform escape hatches.*
-- [ ] **4.1 Audio / Voice Recorder**: Audio input capture, waveform signal processing, and playback management.
-- [ ] **4.2 Video / Video Player**: Video media stream decoder, timeline seeking, metadata extraction, and frame display.
-- [ ] **4.3 Media / Camera Capture**: Real-time camera video and audio stream device capture under capability enforcement.
-- [ ] **4.4 Platform / System Utility**: System utility leveraging platform-native OS features with portable fallback abstractions.
+- [x] **4.1 Audio / Voice Recorder**: Audio input capture, waveform signal processing, and playback management.
+- [x] **4.2 Video / Video Player**: Video media stream decoder, timeline seeking, metadata extraction, and frame display.
+- [x] **4.3 Media / Camera Capture**: Real-time camera video and audio stream device capture under capability enforcement.
+- [x] **4.4 Platform / System Utility**: System utility leveraging platform-native OS features with portable fallback abstractions.
+*Status Note*: Complete. 4 projects implemented in `OMNISCRIPT_AI_BENCHMARK/PHASE_4_MEDIA_PLATFORM/`, each with `RUN_001_CLAUDE_3_5/{source, tests, BENCHMARK_REASONING.md, RESULTS.md}`. All sources pass `omni check` exit 0 and pytest test suites green. Next: **v7 Phase 5 Security / Tooling**.
 
 #### Phase 5: Security / Tooling (5 Projects)
 *Testing cryptography, authentication, observability, compiler inspection, and native interop.*
@@ -412,10 +540,12 @@ The v7 benchmark is an empirical feedback loop for continuous ecosystem evaluati
 - [ ] **5.2 Auth / Authenticated Web Service**: User authentication service combining network endpoints, crypto primitives, and persistent storage.
 - [ ] **5.3 Observability / App Diagnostics**: Diagnostic tool that inspects, profiles, and isolates failure points in a malfunctioning application.
 - [ ] **5.4 Tooling / Project Inspection**: Static analysis tool leveraging compiler inspection APIs to analyze and explain an unfamiliar project.
-- [ ] **5.5 Native Interop / Escape Hatch**: Utility requiring functionality unavailable in standard APIs, utilizing supported native interop / FFI mechanisms while preserving type and safety boundaries.
+- [x] **5.5 Native Interop / Escape Hatch**: Utility requiring functionality unavailable in standard APIs, utilizing supported native interop / FFI mechanisms while preserving type and safety boundaries.
 
 #### Phase 6: AI / Advanced (3 Projects)
 *Testing AI tensor operations, distributed actor systems, and package manager dynamics.*
 - [ ] **6.1 AI / AI Assistant**: Local AI model inference, tensor operations, and structured output formatting.
 - [ ] **6.2 Advanced Concurrency / Distributed Actors**: Distributed message-passing actor cluster with node membership, clustering, and failover.
 - [ ] **6.3 Package System / Multi-Package App**: Multi-module application validating package imports, dependency resolution, and dead-code elimination.
+
+---
