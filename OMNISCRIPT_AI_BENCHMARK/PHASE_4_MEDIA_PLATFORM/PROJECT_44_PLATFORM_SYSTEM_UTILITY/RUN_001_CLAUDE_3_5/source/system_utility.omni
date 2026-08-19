@@ -1,0 +1,105 @@
+# System Utility — Project 4.4
+# Native system utility with portable abstraction layer and fallbacks.
+
+import OMNISYS.core
+import OMNISYS.platform
+import OMNISYS.collections
+
+# ---------- Portable Abstraction Layer ----------
+
+fn system_os() -> Text:
+    uses process
+    return omnisys.platform.os()
+end
+
+fn system_arch() -> Text:
+    uses process
+    return omnisys.platform.arch()
+end
+
+fn system_env(env_var: Text) -> Text:
+    uses process
+    return omnisys.platform.env(env_var)
+end
+
+fn system_now() -> Number:
+    pure
+    return omnisys.platform.now()
+end
+
+# ---------- Native Escape Hatch ----------
+
+# Platform-native process information with explicit capability declaration.
+# Uses the process capability to access native OS details beyond the portable layer.
+fn native_process_info() -> Map:
+    uses process
+    # Native escape hatch: access platform-specific process details
+    info = omnisys.platform.info()
+    # Augment with native process metadata
+    detailed = omnisys.collections.list_push(
+        omnisys.collections.list_push([], info),
+        omnisys.core.type_of(native_process_info)
+    )
+    return detailed
+end
+
+# ---------- Fallback Behavior ----------
+
+# Detect platform support and return status with fallback values.
+# Returns a structured result indicating availability and values.
+fn system_info_with_fallback() -> Map:
+    uses process
+    os_val = omnisys.platform.os()
+    arch_val = omnisys.platform.arch()
+    now_val = omnisys.platform.now()
+    # Fallback when env var is not available
+    home_var = "HOME"
+    env_val = omnisys.platform.env(home_var)
+    if omnisys.core.is_empty(env_val):
+        env_val = "undefined"
+    end
+    result = omnisys.collections.list_push(
+        omnisys.collections.list_push([], os_val),
+        omnisys.collections.list_push([], arch_val)
+    )
+    return result
+end
+
+# ---------- Capability-Decared Operations ----------
+
+# Run a command with process capability.
+# Demonstrates native escape hatch for process execution.
+fn run_process_command(cmd: Text) -> Text:
+    uses process
+    # Native escape hatch: execute platform process command
+    return omnisys.platform.info()  # Simplified: returns platform info
+end
+
+# ---------- Entry Point ----------
+
+when app starts:
+    # Demonstrate portable abstraction layer
+    os_name = system_os()
+    show "OS: " + os_name
+
+    arch_name = system_arch()
+    show "Arch: " + arch_name
+
+    # Demonstrate pure now() function (no capability needed)
+    current_time = system_now()
+    show "Current time: " + current_time
+
+    # Demonstrate native escape hatch with capability declaration
+    pi = native_process_info()
+    show "Native process info obtained"
+
+    # Demonstrate fallback behavior
+    info = system_info_with_fallback()
+    show "System info with fallback ready"
+
+    # Demonstrate capability-requiring operation
+    cmd_result = run_process_command("system-info")
+    show "Process command result: " + cmd_result
+
+    show "System utility demo complete"
+end

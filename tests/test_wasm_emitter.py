@@ -84,3 +84,25 @@ def test_browser_embeds_c_source():
     mir = _mir()
 
     assert emit_c(mir) in emit_wasm_browser(mir)
+
+
+def test_wasm_group_not_neg_through_c():
+    code = """
+fn decide(a: Number) -> Boolean:
+    pure
+    return not (a is 0)
+end
+
+fn flipped(a: Number) -> Number:
+    pure
+    return -a
+end
+"""
+    tokens = tokenize(code)
+    ast = parse(tokens)
+    symbol_table = analyze(ast)
+    mir = to_mir(ast, symbol_table)
+    out = emit_wasm(mir, mode='wasi')
+
+    assert 'return (!((a == 0.0)));' in out
+    assert 'return (-a);' in out

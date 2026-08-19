@@ -1,0 +1,26 @@
+import OMNISYS.serde
+import OMNISYS.http
+
+type User = { id: Number, name: Text, email: Text }
+
+fn user_from_payload(payload: User) -> User:
+    pure
+    return User(id = payload.id, name = payload.name, email = payload.email)
+end
+
+fn parse_user(body: Text) -> User:
+    pure
+    data = omnisys.serde.json_decode(body)
+    return user_from_payload(data)
+end
+
+fn fetch() -> Number:
+    uses network
+    res = omnisys.http.get("inproc://test/x")
+    return 0
+end
+
+when app starts:
+    r = fetch()
+    show r
+end

@@ -1,0 +1,247 @@
+type ConversionResult = {
+    value: Number,
+    source_unit: Text,
+    target_unit: Text,
+    status: Text
+}
+
+fn celsius_to_fahrenheit(celsius: Number) -> Number:
+    pure
+    ensure result is (celsius * 9 / 5 + 32)
+    return celsius * 9 / 5 + 32
+end
+
+fn fahrenheit_to_celsius(fahrenheit: Number) -> Number:
+    pure
+    ensure result is (fahrenheit - 32) * 5 / 9
+    return (fahrenheit - 32) * 5 / 9
+end
+
+fn celsius_to_kelvin(celsius: Number) -> Number:
+    pure
+    ensure result is (celsius + 273.15)
+    return celsius + 273.15
+end
+
+fn kelvin_to_celsius(kelvin: Number) -> Number:
+    pure
+    require kelvin greater or equal 0
+    ensure result is (kelvin - 273.15)
+    return kelvin - 273.15
+end
+
+fn fahrenheit_to_kelvin(fahrenheit: Number) -> Number:
+    pure
+    ensure result is ((fahrenheit - 32) * 5 / 9 + 273.15)
+    return (fahrenheit - 32) * 5 / 9 + 273.15
+end
+
+fn kelvin_to_fahrenheit(kelvin: Number) -> Number:
+    pure
+    require kelvin greater or equal 0
+    ensure result is ((kelvin - 273.15) * 9 / 5 + 32)
+    return (kelvin - 273.15) * 9 / 5 + 32
+end
+
+fn meters_to_feet(meters: Number) -> Number:
+    pure
+    require meters greater or equal 0
+    ensure result is (meters * 3.28084)
+    return meters * 3.28084
+end
+
+fn feet_to_meters(feet: Number) -> Number:
+    pure
+    require feet greater or equal 0
+    ensure result is (feet / 3.28084)
+    return feet / 3.28084
+end
+
+fn meters_to_inches(meters: Number) -> Number:
+    pure
+    require meters greater or equal 0
+    ensure result is (meters * 39.3701)
+    return meters * 39.3701
+end
+
+fn inches_to_meters(inches: Number) -> Number:
+    pure
+    require inches greater or equal 0
+    ensure result is (inches / 39.3701)
+    return inches / 39.3701
+end
+
+fn meters_to_kilometers(meters: Number) -> Number:
+    pure
+    require meters greater or equal 0
+    ensure result is (meters / 1000)
+    return meters / 1000
+end
+
+fn kilometers_to_meters(kilometers: Number) -> Number:
+    pure
+    require kilometers greater or equal 0
+    ensure result is (kilometers * 1000)
+    return kilometers * 1000
+end
+
+fn feet_to_inches(feet: Number) -> Number:
+    pure
+    require feet greater or equal 0
+    ensure result is (feet * 12)
+    return feet * 12
+end
+
+fn inches_to_feet(inches: Number) -> Number:
+    pure
+    require inches greater or equal 0
+    ensure result is (inches / 12)
+    return inches / 12
+end
+
+fn kilometers_to_feet(kilometers: Number) -> Number:
+    pure
+    require kilometers greater or equal 0
+    ensure result is (kilometers * 3280.84)
+    return kilometers * 3280.84
+end
+
+fn feet_to_kilometers(feet: Number) -> Number:
+    pure
+    require feet greater or equal 0
+    ensure result is (feet / 3280.84)
+    return feet / 3280.84
+end
+
+fn kilograms_to_pounds(kilograms: Number) -> Number:
+    pure
+    require kilograms greater or equal 0
+    ensure result is (kilograms * 2.20462)
+    return kilograms * 2.20462
+end
+
+fn pounds_to_kilograms(pounds: Number) -> Number:
+    pure
+    require pounds greater or equal 0
+    ensure result is (pounds / 2.20462)
+    return pounds / 2.20462
+end
+
+fn kilograms_to_ounces(kilograms: Number) -> Number:
+    pure
+    require kilograms greater or equal 0
+    ensure result is (kilograms * 35.274)
+    return kilograms * 35.274
+end
+
+fn ounces_to_kilograms(ounces: Number) -> Number:
+    pure
+    require ounces greater or equal 0
+    ensure result is (ounces / 35.274)
+    return ounces / 35.274
+end
+
+fn pounds_to_ounces(pounds: Number) -> Number:
+    pure
+    require pounds greater or equal 0
+    ensure result is (pounds * 16)
+    return pounds * 16
+end
+
+fn ounces_to_pounds(ounces: Number) -> Number:
+    pure
+    require ounces greater or equal 0
+    ensure result is (ounces / 16)
+    return ounces / 16
+end
+
+fn make_result(value: Number, source: Text, target: Text) -> ConversionResult:
+    pure
+    return ConversionResult(value = value, source_unit = source, target_unit = target, status = "success")
+end
+
+when app starts:
+    show "=== Temperature Conversions ==="
+    t1_val = celsius_to_fahrenheit(0)
+    t1 = make_result(t1_val, "Celsius", "Fahrenheit")
+    show "0 Celsius = {t1.value} Fahrenheit"
+    t2_val = fahrenheit_to_celsius(32)
+    t2 = make_result(t2_val, "Fahrenheit", "Celsius")
+    show "32 Fahrenheit = {t2.value} Celsius"
+    t3_val = celsius_to_kelvin(0)
+    t3 = make_result(t3_val, "Celsius", "Kelvin")
+    show "0 Celsius = {t3.value} Kelvin"
+    t4_val = kelvin_to_celsius(273.15)
+    t4 = make_result(t4_val, "Kelvin", "Celsius")
+    show "273.15 Kelvin = {t4.value} Celsius"
+    t5_val = fahrenheit_to_kelvin(32)
+    t5 = make_result(t5_val, "Fahrenheit", "Kelvin")
+    show "32 Fahrenheit = {t5.value} Kelvin"
+    t6_val = kelvin_to_fahrenheit(273.15)
+    t6 = make_result(t6_val, "Kelvin", "Fahrenheit")
+    show "273.15 Kelvin = {t6.value} Fahrenheit"
+
+    show ""
+    show "=== Length Conversions ==="
+    l1_val = meters_to_feet(1)
+    l1 = make_result(l1_val, "Meters", "Feet")
+    show "1 Meter = {l1.value} Feet"
+    l2_val = feet_to_meters(3.28084)
+    l2 = make_result(l2_val, "Feet", "Meters")
+    show "3.28084 Feet = {l2.value} Meters"
+    l3_val = meters_to_inches(1)
+    l3 = make_result(l3_val, "Meters", "Inches")
+    show "1 Meter = {l3.value} Inches"
+    l4_val = inches_to_meters(39.3701)
+    l4 = make_result(l4_val, "Inches", "Meters")
+    show "39.3701 Inches = {l4.value} Meters"
+    l5_val = meters_to_kilometers(1000)
+    l5 = make_result(l5_val, "Meters", "Kilometers")
+    show "1000 Meters = {l5.value} Kilometers"
+    l6_val = kilometers_to_meters(1)
+    l6 = make_result(l6_val, "Kilometers", "Meters")
+    show "1 Kilometer = {l6.value} Meters"
+    l7_val = feet_to_inches(1)
+    l7 = make_result(l7_val, "Feet", "Inches")
+    show "1 Foot = {l7.value} Inches"
+    l8_val = inches_to_feet(12)
+    l8 = make_result(l8_val, "Inches", "Feet")
+    show "12 Inches = {l8.value} Feet"
+    l9_val = kilometers_to_feet(1)
+    l9 = make_result(l9_val, "Kilometers", "Feet")
+    show "1 Kilometer = {l9.value} Feet"
+    l10_val = feet_to_kilometers(3280.84)
+    l10 = make_result(l10_val, "Feet", "Kilometers")
+    show "3280.84 Feet = {l10.value} Kilometers"
+
+    show ""
+    show "=== Weight Conversions ==="
+    w1_val = kilograms_to_pounds(1)
+    w1 = make_result(w1_val, "Kilograms", "Pounds")
+    show "1 Kilogram = {w1.value} Pounds"
+    w2_val = pounds_to_kilograms(2.20462)
+    w2 = make_result(w2_val, "Pounds", "Kilograms")
+    show "2.20462 Pounds = {w2.value} Kilograms"
+    w3_val = kilograms_to_ounces(1)
+    w3 = make_result(w3_val, "Kilograms", "Ounces")
+    show "1 Kilogram = {w3.value} Ounces"
+    w4_val = ounces_to_kilograms(35.274)
+    w4 = make_result(w4_val, "Ounces", "Kilograms")
+    show "35.274 Ounces = {w4.value} Kilograms"
+    w5_val = pounds_to_ounces(1)
+    w5 = make_result(w5_val, "Pounds", "Ounces")
+    show "1 Pound = {w5.value} Ounces"
+    w6_val = ounces_to_pounds(16)
+    w6 = make_result(w6_val, "Ounces", "Pounds")
+    show "16 Ounces = {w6.value} Pounds"
+
+    show ""
+    show "=== Boundary Validation Tests ==="
+    show "Testing Kelvin absolute zero boundary..."
+    k_zero_val = kelvin_to_celsius(0)
+    k_zero = make_result(k_zero_val, "Kelvin", "Celsius")
+    show "0 Kelvin = {k_zero.value} Celsius (absolute zero)"
+
+    show ""
+    show "All conversions completed successfully!"
+end

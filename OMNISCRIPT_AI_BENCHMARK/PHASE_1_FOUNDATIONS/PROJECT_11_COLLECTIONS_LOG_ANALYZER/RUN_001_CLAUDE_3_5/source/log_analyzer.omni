@@ -1,0 +1,22 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+type MyMap = { a: Number, b: Number, c: Number }
+
+fn test_map_operations() -> Number:
+    m = MyMap(a=1, b=2, c=3)
+    omnisys.collections.map_set(m, "d", 4)
+    return omnisys.collections.map_size(m)
+end
+
+fn main() -> Number:
+    size = test_map_operations()
+    show "Map size: " + omnisys.core.type_of(size)
+    return size
+end
+
+when app starts:
+    show "=== Map Operations Demo ==="
+    main()
+    show "=== Complete ==="
+end

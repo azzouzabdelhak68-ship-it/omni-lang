@@ -32,16 +32,16 @@ from omni_compiler.mir import to_mir
 from omni_compiler.parser import parse
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_JS = ROOT / "simulation_engine" / "runtime.js"
-EXAMPLES = ROOT / "examples"
-SCRIPTS = ROOT / "scripts"
+RUNTIME_JS = ROOT / 'simulation_engine' / 'runtime.js'
+EXAMPLES = ROOT / 'examples'
+SCRIPTS = ROOT / 'scripts'
 
 
 def _node_available() -> bool:
-    return shutil.which("node") is not None
+    return shutil.which('node') is not None
 
 
-NEEDS_NODE = pytest.mark.skipif(not _node_available(), reason="node not installed")
+NEEDS_NODE = pytest.mark.skipif(not _node_available(), reason='node not installed')
 
 
 def _emit_html(code: str) -> str:
@@ -54,12 +54,12 @@ def _emit_html(code: str) -> str:
 
 
 def _run_node(js: str, timeout: float = 60.0) -> subprocess.CompletedProcess[str]:
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".js", encoding="utf-8", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.js', encoding='utf-8', delete=False) as f:
         f.write(js)
         path = Path(f.name)
     try:
         return subprocess.run(
-            ["node", str(path)], capture_output=True, text=True, timeout=timeout, check=False
+            ['node', str(path)], capture_output=True, text=True, timeout=timeout, check=False
         )
     finally:
         path.unlink(missing_ok=True)
@@ -68,9 +68,8 @@ def _run_node(js: str, timeout: float = 60.0) -> subprocess.CompletedProcess[str
 def _js_program(body: str) -> str:
     return (
         '"use strict";\n'
-        f"const {{ createRuntime }} = require({str(RUNTIME_JS)!r});\n"
-        "const sim = createRuntime().sim;\n"
-        + body
+        f'const {{ createRuntime }} = require({str(RUNTIME_JS)!r});\n'
+        'const sim = createRuntime().sim;\n' + body
     )
 
 
@@ -79,7 +78,7 @@ def _js_result(body: str) -> Any:
     proc = _run_node(_js_program(body))
     assert proc.returncode == 0, proc.stderr
     lines = [line for line in proc.stdout.splitlines() if line.strip()]
-    assert lines, "no JSON result was printed"
+    assert lines, 'no JSON result was printed'
     return json.loads(lines[-1])
 
 
@@ -104,7 +103,7 @@ def test_spawn_send_receive_happy_path() -> None:
         console.log(JSON.stringify({ state: a.state, processed: a.processed }));
         """
     )
-    assert result == {"state": 2, "processed": 2}
+    assert result == {'state': 2, 'processed': 2}
 
 
 @NEEDS_NODE
@@ -123,7 +122,7 @@ def test_message_ordering_per_mailbox() -> None:
         console.log(JSON.stringify(a.state));
         """
     )
-    assert result == ["a", "b", "c"]
+    assert result == ['a', 'b', 'c']
 
 
 @NEEDS_NODE
@@ -142,7 +141,7 @@ def test_dead_letter_unknown_target() -> None:
           reason: dl[0] && dl[0].reason }));
         """
     )
-    assert result == {"dead": 1, "delivered": 0, "sent": 0, "reason": "unknown-actor"}
+    assert result == {'dead': 1, 'delivered': 0, 'sent': 0, 'reason': 'unknown-actor'}
 
 
 @NEEDS_NODE
@@ -162,7 +161,7 @@ def test_receive_primitive_filters_messages() -> None:
         console.log(JSON.stringify({ state: a.state, dropped: h.dropped }));
         """
     )
-    assert result == {"state": ["keep"], "dropped": 1}
+    assert result == {'state': ['keep'], 'dropped': 1}
 
 
 @NEEDS_NODE
@@ -189,12 +188,12 @@ def test_actor_crash_supervision_restarts_and_resets_state() -> None:
         """
     )
     assert result == {
-        "state": 1,
-        "restarts": 1,
-        "crashes": 1,
-        "alive": True,
-        "dead": 1,
-        "delivered": 1,
+        'state': 1,
+        'restarts': 1,
+        'crashes': 1,
+        'alive': True,
+        'dead': 1,
+        'delivered': 1,
     }
 
 
@@ -222,12 +221,12 @@ def test_actor_crash_restart_limit_dead_letters_mailbox() -> None:
         """
     )
     assert result == {
-        "alive": False,
-        "stopped": True,
-        "restarts": 1,
-        "crashes": 2,
-        "dead": 3,
-        "mailbox": 0,
+        'alive': False,
+        'stopped': True,
+        'restarts': 1,
+        'crashes': 2,
+        'dead': 3,
+        'mailbox': 0,
     }
 
 
@@ -250,13 +249,13 @@ def test_runtime_api_surface_nested_and_flat_bridge() -> None:
         """
     )
     assert result == {
-        "spawn": "function",
-        "send": "function",
-        "receive": "function",
-        "clusterCreate": "function",
-        "flatSpawn": True,
-        "nestedSpawn": True,
-        "version": "5.3.0",
+        'spawn': 'function',
+        'send': 'function',
+        'receive': 'function',
+        'clusterCreate': 'function',
+        'flatSpawn': True,
+        'nestedSpawn': True,
+        'version': '5.3.0',
     }
 
 
@@ -284,7 +283,7 @@ def test_cluster_two_nodes_exchange_messages() -> None:
         console.log(JSON.stringify(b.state));
         """
     )
-    assert result == ["hello"]
+    assert result == ['hello']
 
 
 @NEEDS_NODE
@@ -306,11 +305,11 @@ def test_membership_converges_via_heartbeats_and_detects_failure() -> None:
         """
     )
     assert result == {
-        "before": ["memb.coordinator", "n1", "n2"],
-        "after": ["memb.coordinator", "n1"],
-        "n2Removed": True,
+        'before': ['memb.coordinator', 'n1', 'n2'],
+        'after': ['memb.coordinator', 'n1'],
+        'n2Removed': True,
         # 1 from the explicit fail() + 1 from heartbeat detection of the death
-        "failures": 2,
+        'failures': 2,
     }
 
 
@@ -335,16 +334,16 @@ def test_partition_holds_messages_until_heal_then_redelivers() -> None:
           during, after, state: a.state, redelivered: after.redelivered }));
         """
     )
-    during = result["during"]
-    after = result["after"]
+    during = result['during']
+    after = result['after']
     assert isinstance(during, dict) and isinstance(after, dict)
-    assert during["sent"] == 1
-    assert during["delivered"] == 0
-    assert during["dead"] == 0
-    assert after["delivered"] == 1
-    assert after["dead"] == 0
-    assert result["state"] == 1
-    assert result["redelivered"] >= 1
+    assert during['sent'] == 1
+    assert during['delivered'] == 0
+    assert during['dead'] == 0
+    assert after['delivered'] == 1
+    assert after['dead'] == 0
+    assert result['state'] == 1
+    assert result['redelivered'] >= 1
 
 
 @NEEDS_NODE
@@ -365,7 +364,7 @@ def test_heal_redelivery_dead_letters_when_target_is_gone() -> None:
           dead: st.dead, delivered: st.delivered, reason: dl[0] && dl[0].reason }));
         """
     )
-    assert result == {"dead": 1, "delivered": 0, "reason": "actor-gone"}
+    assert result == {'dead': 1, 'delivered': 0, 'reason': 'actor-gone'}
 
 
 # --------------------------------------------------------------------------
@@ -396,12 +395,12 @@ def test_node_failure_supervisor_restart_has_no_message_loss() -> None:
         """
     )
     assert result == {
-        "sent": 2,
-        "delivered": 2,
-        "dead": 0,
-        "restarts": 1,
-        "log": ["ping", "after-crash"],
-        "alive": True,
+        'sent': 2,
+        'delivered': 2,
+        'dead': 0,
+        'restarts': 1,
+        'log': ['ping', 'after-crash'],
+        'alive': True,
     }
 
 
@@ -428,7 +427,7 @@ def test_node_failure_restart_limit_removes_and_dead_letters() -> None:
         console.log(JSON.stringify(out));
         """
     )
-    assert result == {"restarts": 1, "dead": 1, "delivered": 1, "removed": True, "alive": False}
+    assert result == {'restarts': 1, 'dead': 1, 'delivered': 1, 'removed': True, 'alive': False}
 
 
 @NEEDS_NODE
@@ -461,7 +460,7 @@ def test_chaos_scenario_is_deterministic_across_replays() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     parsed = json.loads(proc.stdout.splitlines()[-1])
-    assert parsed["identical"] is True
+    assert parsed['identical'] is True
 
 
 # --------------------------------------------------------------------------
@@ -470,26 +469,26 @@ def test_chaos_scenario_is_deterministic_across_replays() -> None:
 
 
 def test_example_actors_compiles_through_pipeline() -> None:
-    code = (EXAMPLES / "actors.omni").read_text(encoding="utf-8")
+    code = (EXAMPLES / 'actors.omni').read_text(encoding='utf-8')
     html = _emit_html(code)
     markers = (
-        "sim.cluster(",
-        "sim.node(",
-        "sim.spawn(",
-        "sim.send(",
-        "sim.partition(",
-        "sim.heal(",
-        "sim.run(",
-        "sim.members(",
+        'sim.cluster(',
+        'sim.node(',
+        'sim.spawn(',
+        'sim.send(',
+        'sim.partition(',
+        'sim.heal(',
+        'sim.run(',
+        'sim.members(',
     )
     for marker in markers:
         assert marker in html
 
 
 def test_example_chaos_compiles_through_pipeline() -> None:
-    code = (EXAMPLES / "chaos.omni").read_text(encoding="utf-8")
+    code = (EXAMPLES / 'chaos.omni').read_text(encoding='utf-8')
     html = _emit_html(code)
-    for marker in ("sim.cluster(", "sim.node(", "sim.spawn(", "sim.fail(", "sim.run("):
+    for marker in ('sim.cluster(', 'sim.node(', 'sim.spawn(', 'sim.fail(', 'sim.run('):
         assert marker in html
 
 
@@ -518,53 +517,53 @@ end
 
 @NEEDS_NODE
 def test_example_actors_runs_through_harness(tmp_path: Path) -> None:
-    html = _emit_html((EXAMPLES / "actors.omni").read_text(encoding="utf-8"))
-    out = tmp_path / "actors.html"
-    out.write_text(html, encoding="utf-8")
+    html = _emit_html((EXAMPLES / 'actors.omni').read_text(encoding='utf-8'))
+    out = tmp_path / 'actors.html'
+    out.write_text(html, encoding='utf-8')
     proc = subprocess.run(
-        ["node", str(SCRIPTS / "run-actors.js"), str(out)],
+        ['node', str(SCRIPTS / 'run-actors.js'), str(out)],
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
     assert proc.returncode == 0, proc.stderr
-    assert proc.stdout.splitlines() == ["during partition", "demo.coordinator, n1, n2", "done"]
+    assert proc.stdout.splitlines() == ['during partition', 'demo.coordinator, n1, n2', 'done']
 
 
 @NEEDS_NODE
 def test_example_chaos_runs_through_harness(tmp_path: Path) -> None:
-    html = _emit_html((EXAMPLES / "chaos.omni").read_text(encoding="utf-8"))
-    out = tmp_path / "chaos.html"
-    out.write_text(html, encoding="utf-8")
+    html = _emit_html((EXAMPLES / 'chaos.omni').read_text(encoding='utf-8'))
+    out = tmp_path / 'chaos.html'
+    out.write_text(html, encoding='utf-8')
     proc = subprocess.run(
-        ["node", str(SCRIPTS / "run-actors.js"), str(out)],
+        ['node', str(SCRIPTS / 'run-actors.js'), str(out)],
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
     assert proc.returncode == 0, proc.stderr
-    assert proc.stdout.splitlines() == ["ping", "after-crash", "chaos done"]
+    assert proc.stdout.splitlines() == ['ping', 'after-crash', 'chaos done']
 
 
 @NEEDS_NODE
 def test_run_actors_script_cli_end_to_end() -> None:
     proc = subprocess.run(
-        [sys.executable, str(SCRIPTS / "run-actors.py"), str(EXAMPLES / "actors.omni")],
+        [sys.executable, str(SCRIPTS / 'run-actors.py'), str(EXAMPLES / 'actors.omni')],
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
     assert proc.returncode == 0, proc.stderr
-    assert "during partition" in proc.stdout
-    assert "done" in proc.stdout
+    assert 'during partition' in proc.stdout
+    assert 'done' in proc.stdout
 
 
 def test_run_actors_script_missing_arguments() -> None:
     proc = subprocess.run(
-        [sys.executable, str(SCRIPTS / "run-actors.py")],
+        [sys.executable, str(SCRIPTS / 'run-actors.py')],
         capture_output=True,
         text=True,
         timeout=60,
@@ -576,10 +575,110 @@ def test_run_actors_script_missing_arguments() -> None:
 @NEEDS_NODE
 def test_run_actors_script_missing_file() -> None:
     proc = subprocess.run(
-        [sys.executable, str(SCRIPTS / "run-actors.py"), "tests/no_such_file.omni"],
+        [sys.executable, str(SCRIPTS / 'run-actors.py'), 'tests/no_such_file.omni'],
         capture_output=True,
         text=True,
         timeout=60,
         check=False,
     )
     assert proc.returncode == 1  # noqa: PLR2004
+
+
+# --------------------------------------------------------------------------
+# v6 Phase 8: flat `sim.*` ECS runtime (v3.4 C-02)
+# --------------------------------------------------------------------------
+
+
+@NEEDS_NODE
+def test_ecs_entity_system_run_query() -> None:
+    """The flat sim.* namespace ships the ECS runtime the platform advertises."""
+    result = _js_result(
+        """
+        sim.entity("particle1", ["position", "velocity"]);
+        sim.entity("particle2", ["position"]);
+        sim.system("motion", (w) => { w.bumped = true; }, ["position"]);
+        sim.run(2);
+        console.log(JSON.stringify({
+          query_velocity: sim.query("velocity"),
+          query_position: sim.query("position"),
+          entities: sim.entities(),
+          step: sim.snapshot().step,
+          systems: sim.snapshot().systems,
+        }));
+        """
+    )
+    assert result == {
+        'query_velocity': ['particle1'],
+        'query_position': ['particle1', 'particle2'],
+        'entities': ['particle1', 'particle2'],
+        'step': 2,
+        'systems': ['motion'],
+    }
+
+
+@NEEDS_NODE
+def test_ecs_component_get_remove_snapshot() -> None:
+    result = _js_result(
+        """
+        sim.entity("e1", ["pos"]);
+        sim.component("e1", "pos", { x: 1, y: 2 });
+        const before = sim.get("e1", "pos");
+        sim.remove_entity("e1");
+        console.log(JSON.stringify({
+          before, entities: sim.entities(), snapshot_entities: sim.snapshot().entities,
+        }));
+        """
+    )
+    assert result['before'] == {'x': 1, 'y': 2}
+    assert result['entities'] == []
+    assert result['snapshot_entities'] == {}
+
+
+@NEEDS_NODE
+def test_ecs_run_dispatch_keeps_actor_run() -> None:
+    """sim.run(steps) runs the ECS; sim.run() still drains the actor cluster."""
+    result = _js_result(
+        """
+        const c = sim.actor.cluster.create("d");
+        sim.actor.cluster.addNode(c, "n1");
+        const counter = sim.actor.spawn(c, "n1", "counter",
+          (s, m) => (m === "inc" ? s + 1 : s), 0);
+        sim.actor.send(c, counter, "inc");
+        sim.actor.run(c);
+        const snap = sim.actor.cluster.snapshot(c);
+        const a = snap.nodes.find(n => n.id === "n1").actors.find(x => x.name === "counter");
+        console.log(JSON.stringify({ state: a.state, ecs_step: sim.run(4) }));
+        """
+    )
+    assert result == {'state': 1, 'ecs_step': 4}
+
+
+@NEEDS_NODE
+def test_ecs_omni_program_runs_through_run_omnisys(tmp_path: Path) -> None:
+    """An `.omni` program using the flat sim.* ECS API runs under `omni run`."""
+    code = """
+when app starts:
+    sim.entity("p1", ["position", "velocity"])
+    sim.entity("p2", ["position"])
+    sim.system("motion", tick, ["position"])
+    sim.run(2)
+    show "count"
+    show sim.query("velocity")
+end
+fn tick(w: Map) -> Map:
+    pure
+    return w
+end
+"""
+    html = _emit_html(code)
+    out = tmp_path / 'ecs.html'
+    out.write_text(html, encoding='utf-8')
+    proc = subprocess.run(
+        ['node', str(SCRIPTS / 'run-omnisys.js'), str(out)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.splitlines() == ['count', 'p1']

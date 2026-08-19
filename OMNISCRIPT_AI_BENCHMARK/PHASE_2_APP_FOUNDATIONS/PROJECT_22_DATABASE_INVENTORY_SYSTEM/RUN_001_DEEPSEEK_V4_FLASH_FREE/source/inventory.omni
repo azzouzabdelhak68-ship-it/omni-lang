@@ -1,0 +1,445 @@
+# OMNISCRIPT INVENTORY MANAGEMENT SYSTEM
+#
+# Relational inventory system on OMNISYS.db (the implemented 10-function API):
+#   create_db, create_table, insert, select, update, delete, count,
+#   drop_table, schema, table_size.
+#
+# Language-ecosystem notes (discovered by probing; see BENCHMARK_REASONING.md):
+#  - Row field access is only allowed on function parameters typed as a custom
+#    type, and only inside predicates / capture functions.
+#  - Module-scope state (captures, query parameters, table handles) is written
+#    by setter functions that are defined FIRST because the checker analyzes
+#    functions in source order (reads must follow writes in analysis order).
+#  - OMNISYS.db has NO transaction primitive: transactions here are
+#    validate-before-mutate (fail-fast) with an explicit compensation path
+#    (second update restores the captured prior stock) to demonstrate rollback.
+#
+# Capability model: every function touching the database declares `uses database`.
+# The `when app starts` block performs no effects itself; it calls declared functions.
+
+import OMNISYS.db
+import OMNISYS.collections
+import OMNISYS.platform
+import OMNISYS.core
+
+# ---------------------------------------------------------------------------
+# Schema definitions (column-type maps for create_table + row shapes)
+# ---------------------------------------------------------------------------
+
+type CategorySchema = { name: Text }
+type ProductSchema = { name: Text, price: Text, stock: Text, category_id: Text }
+type MovementSchema = { product_id: Text, delta: Text, note: Text, ts: Text }
+
+type CategoryRow = { id: Number, name: Text }
+type ProductRow = { id: Number, name: Text, price: Number, stock: Number, category_id: Number }
+type MovementRow = { id: Number, product_id: Number, delta: Number, note: Text, ts: Number }
+
+type CategoryInsert = { name: Text }
+type ProductInsert = { name: Text, price: Number, stock: Number, category_id: Number }
+type MovementInsert = { product_id: Number, delta: Number, note: Text, ts: Number }
+
+type PricePatch = { price: Number }
+type NamePatch = { name: Text }
+type StockPatch = { stock: Number }
+type CategoryPatch = { category_id: Number }
+type CategoryNamePatch = { name: Text }
+
+# ---------------------------------------------------------------------------
+# 1. Module-state setters (analyzed first; every module-scope var is written
+#    here or in a capture function, so later functions may read them safely).
+# ---------------------------------------------------------------------------
+
+fn reset_output() -> None:
+    writes captured_category_id captured_category_name captured_price captured_stock output_lines reverted
+    output_lines = ""
+    captured_stock = 0
+    captured_price = 0
+    captured_category_id = 0
+    captured_category_name = 0
+    reverted = 0
+end
+
+fn set_prefix_state(p: Text) -> None:
+    writes current_prefix current_prefix_len
+    current_prefix = p
+    current_prefix_len = OMNISYS.core.length(p)
+end
+
+fn set_threshold(t: Number) -> None:
+    writes current_threshold
+    current_threshold = t
+end
+
+fn set_category_name(n: Text) -> None:
+    writes current_category_name
+    current_category_name = n
+end
+
+fn set_category_id(c: Number) -> None:
+    writes current_category_id
+    current_category_id = c
+end
+
+fn set_target_id(t: Number) -> None:
+    writes target_id
+    target_id = t
+end
+
+# ---------------------------------------------------------------------------
+# 2. Inventory bootstrap: creates the database and its three tables.
+# ---------------------------------------------------------------------------
+
+fn build_inventory() -> None:
+    uses database
+    reads dbh
+    writes dbh categories_tbl products_tbl movements_tbl
+    dbh = OMNISYS.db.create_db("inventory")
+    categories_tbl = OMNISYS.db.create_table(dbh, "categories", CategorySchema(name="Text"))
+    products_tbl = OMNISYS.db.create_table(dbh, "products", ProductSchema(name="Text", price="Text", stock="Text", category_id="Text"))
+    movements_tbl = OMNISYS.db.create_table(dbh, "movements", MovementSchema(product_id="Text", delta="Text", note="Text", ts="Text"))
+end
+
+# ---------------------------------------------------------------------------
+# 3. Capture predicates — the only channel for reading row values.
+# ---------------------------------------------------------------------------
+
+fn capture_target_stock(row: ProductRow) -> Boolean:
+    reads target_id
+    writes captured_price captured_stock
+    if row.id is target_id:
+        captured_stock = row.stock
+        captured_price = row.price
+        return true
+    end
+    return false
+end
+
+fn capture_category_id(row: CategoryRow) -> Boolean:
+    reads current_category_name
+    writes captured_category_id current_category_id
+    if row.name is current_category_name:
+        captured_category_id = row.id
+        current_category_id = row.id
+        return true
+    end
+    return false
+end
+
+fn capture_category_name(row: CategoryRow) -> Boolean:
+    reads current_category_id
+    writes captured_category_name
+    if row.id is current_category_id:
+        captured_category_name = row.name
+        return true
+    end
+    return false
+end
+
+# ---------------------------------------------------------------------------
+# 4. Predicates (filter / report) — parameterized via module state.
+# ---------------------------------------------------------------------------
+
+fn is_product_id(row: ProductRow) -> Boolean:
+    reads target_id
+    return row.id is target_id
+end
+
+fn is_category_id(row: CategoryRow) -> Boolean:
+    reads current_category_id
+    return row.id is current_category_id
+end
+
+fn is_category_named(row: CategoryRow) -> Boolean:
+    reads current_category_name
+    return row.name is current_category_name
+end
+
+fn is_in_category(row: ProductRow) -> Boolean:
+    reads current_category_id
+    return row.category_id is current_category_id
+end
+
+fn is_low_stock(row: ProductRow) -> Boolean:
+    reads current_threshold
+    return row.stock less than current_threshold
+end
+
+fn is_named_prefix(row: ProductRow) -> Boolean:
+    reads current_prefix_len current_prefix
+    if OMNISYS.core.length(row.name) greater or equal current_prefix_len:
+        return OMNISYS.collections.list_slice(row.name, 0, current_prefix_len) is current_prefix
+    end
+    return false
+end
+
+fn count_all(row: ProductRow) -> Boolean:
+    return true
+end
+
+fn count_categories(row: CategoryRow) -> Boolean:
+    return true
+end
+
+fn count_movements(row: MovementRow) -> Boolean:
+    return true
+end
+
+fn report_products_in_current_category(row: ProductRow) -> Boolean:
+    reads current_category_id output_lines
+    writes output_lines
+    if row.category_id is current_category_id:
+        output_lines = output_lines + "{row.id}|{row.name}|{row.stock};"
+    end
+    return true
+end
+
+fn report_low_stock(row: ProductRow) -> Boolean:
+    reads current_threshold output_lines
+    writes output_lines
+    if row.stock less than current_threshold:
+        output_lines = output_lines + "{row.id}|{row.name}|{row.stock};"
+    end
+    return true
+end
+
+fn report_prefix_match(row: ProductRow) -> Boolean:
+    reads current_prefix_len current_prefix output_lines
+    writes output_lines
+    if OMNISYS.core.length(row.name) greater or equal current_prefix_len:
+        if OMNISYS.collections.list_slice(row.name, 0, current_prefix_len) is current_prefix:
+            output_lines = output_lines + "{row.id}|{row.name}|{row.stock};"
+        end
+    end
+    return true
+end
+
+fn report_movements(row: MovementRow) -> Boolean:
+    reads output_lines
+    writes output_lines
+    output_lines = output_lines + "{row.id}|{row.product_id}|{row.delta}|{row.note};"
+    return true
+end
+
+# Join view: for every product, resolve its category name through a nested
+# select on the categories table (join by category_id == category id).
+fn join_report(row: ProductRow) -> Boolean:
+    uses database
+    reads categories_tbl output_lines
+    writes output_lines
+    set_category_id(row.category_id)
+    matches = OMNISYS.db.select(categories_tbl, is_category_id)
+    names = OMNISYS.db.select(categories_tbl, capture_category_name)
+    output_lines = output_lines + "{row.id}|{row.name}|{captured_category_name};"
+    return true
+end
+
+# ---------------------------------------------------------------------------
+# 5. CRUD operations with validation (reject negative price / negative stock).
+# ---------------------------------------------------------------------------
+
+fn insert_category(categories: Table, name: Text) -> Text:
+    uses database
+    stored = OMNISYS.db.insert(categories, CategoryInsert(name=name))
+    return "ok"
+end
+
+fn insert_product(products: Table, name: Text, price: Number, stock: Number, category_id: Number) -> Text:
+    uses database
+    if price less than 0:
+        return "reject:negative-price"
+    end
+    if stock less than 0:
+        return "reject:negative-stock"
+    end
+    stored = OMNISYS.db.insert(products, ProductInsert(name=name, price=price, stock=stock, category_id=category_id))
+    return "ok"
+end
+
+fn update_product_price(products: Table, pid: Number, price: Number) -> Text:
+    uses database
+    if price less than 0:
+        return "reject:negative-price"
+    end
+    set_target_id(pid)
+    changed = OMNISYS.db.update(products, is_product_id, PricePatch(price=price))
+    return "ok"
+end
+
+fn update_product_name(products: Table, pid: Number, name: Text) -> Text:
+    uses database
+    set_target_id(pid)
+    changed = OMNISYS.db.update(products, is_product_id, NamePatch(name=name))
+    return "ok"
+end
+
+fn update_category_name(categories: Table, cid: Number, name: Text) -> Text:
+    uses database
+    set_category_id(cid)
+    changed = OMNISYS.db.update(categories, is_category_id, CategoryNamePatch(name=name))
+    return "ok"
+end
+
+fn delete_product(products: Table, pid: Number) -> Number:
+    uses database
+    set_target_id(pid)
+    return OMNISYS.db.delete(products, is_product_id)
+end
+
+# ---------------------------------------------------------------------------
+# 6. Transactions — atomic stock adjustment with a matching movement record.
+#
+#    validate-before-mutate: every invariant is checked BEFORE any mutation, so
+#    a rejected adjustment leaves the prior consistent state untouched.
+#    Successful adjustments ALWAYS insert exactly one matching movement row
+#    (same product_id and delta) in the same transaction function.
+# ---------------------------------------------------------------------------
+
+fn adjust_stock(products: Table, movements: Table, pid: Number, delta: Number, note: Text) -> Text:
+    uses database
+    reads captured_stock
+    set_target_id(pid)
+    found = OMNISYS.db.select(products, capture_target_stock)
+    if delta is 0:
+        return "reject:zero-delta"
+    end
+    if captured_stock + delta less than 0:
+        return "reject:insufficient-stock"
+    end
+    changed = OMNISYS.db.update(products, is_product_id, StockPatch(stock=captured_stock + delta))
+    mov = OMNISYS.db.insert(movements, MovementInsert(product_id=pid, delta=delta, note=note, ts=OMNISYS.platform.now()))
+    return "ok"
+end
+
+# Demonstrates rollback-on-failure by COMPENSATION: OMNISYS.db has no native
+# transaction primitive, so a late failure (movement validation) is undone by
+# a compensating update that restores the captured prior stock. Invariant: a
+# rejected movement never leaves a stock change behind.
+fn adjust_stock_with_rollback(products: Table, movements: Table, pid: Number, delta: Number, note: Text) -> Text:
+    uses database
+    reads captured_stock
+    writes reverted
+    set_target_id(pid)
+    found = OMNISYS.db.select(products, capture_target_stock)
+    if delta is 0:
+        return "reject:zero-delta"
+    end
+    if captured_stock + delta less than 0:
+        return "reject:insufficient-stock"
+    end
+    changed = OMNISYS.db.update(products, is_product_id, StockPatch(stock=captured_stock + delta))
+    if note is "":
+        reverted = OMNISYS.db.update(products, is_product_id, StockPatch(stock=captured_stock))
+        return "reject:rollback-done"
+    end
+    mov = OMNISYS.db.insert(movements, MovementInsert(product_id=pid, delta=delta, note=note, ts=OMNISYS.platform.now()))
+    return "ok"
+end
+
+# ---------------------------------------------------------------------------
+# 7. Scenario runner — exercises CRUD, transactions, relationships, queries.
+# ---------------------------------------------------------------------------
+
+fn run_scenario() -> None:
+    uses database
+    reads categories_tbl products_tbl movements_tbl output_lines captured_stock captured_price
+    insert_category(categories_tbl, "tools")
+    insert_category(categories_tbl, "kitchen")
+    insert_category(categories_tbl, "garden")
+
+    insert_product(products_tbl, "hammer", 12, 20, 1)
+    insert_product(products_tbl, "drill", 80, 4, 1)
+    insert_product(products_tbl, "pan", 25, 7, 2)
+    insert_product(products_tbl, "shovel", 30, 12, 3)
+    insert_product(products_tbl, "rake", 15, 2, 3)
+
+    show "COUNT_CATEGORIES " + OMNISYS.db.count(categories_tbl, count_categories)
+    show "COUNT_PRODUCTS " + OMNISYS.db.count(products_tbl, count_all)
+
+    rej1 = insert_product(products_tbl, "bargain", 0-1, 5, 1)
+    show "REJECT_NEG_PRICE " + rej1
+    rej2 = insert_product(products_tbl, "weird", 5, 0-1, 1)
+    show "REJECT_NEG_STOCK " + rej2
+    show "COUNT_PRODUCTS_AFTER_REJECT " + OMNISYS.db.count(products_tbl, count_all)
+
+    upd = update_product_price(products_tbl, 3, 28)
+    show "UPDATED_PRICE " + upd
+    seen = OMNISYS.db.select(products_tbl, capture_target_stock)
+    show "PAN_PRICE " + captured_price
+
+    renamed = update_category_name(categories_tbl, 3, "outdoor")
+    show "RENAMED_CATEGORY " + renamed
+
+    removed = delete_product(products_tbl, 5)
+    show "DELETED_PRODUCT " + removed
+    show "COUNT_PRODUCTS_AFTER_DELETE " + OMNISYS.db.count(products_tbl, count_all)
+    insert_product(products_tbl, "spade", 18, 9, 3)
+
+    a1 = adjust_stock(products_tbl, movements_tbl, 1, 10, "restock")
+    show "ADJUST_1 " + a1
+    a2 = adjust_stock(products_tbl, movements_tbl, 2, 0-2, "sale")
+    show "ADJUST_2 " + a2
+    a3 = adjust_stock(products_tbl, movements_tbl, 4, 0-50, "sale")
+    show "ADJUST_3 " + a3
+    a4 = adjust_stock(products_tbl, movements_tbl, 1, 0, "noop")
+    show "ADJUST_4 " + a4
+
+    seen = OMNISYS.db.select(products_tbl, capture_target_stock)
+    show "HAMMER_STOCK " + captured_stock
+    show "MOVEMENT_COUNT " + OMNISYS.db.count(movements_tbl, count_movements)
+
+    reset_output()
+    mv = OMNISYS.db.select(movements_tbl, report_movements)
+    show "MOVEMENTS " + output_lines
+
+    rb = adjust_stock_with_rollback(products_tbl, movements_tbl, 3, 5, "")
+    show "ADJUST_ROLLBACK " + rb
+    seen = OMNISYS.db.select(products_tbl, capture_target_stock)
+    show "PAN_STOCK_AFTER_ROLLBACK " + captured_stock
+    show "MOVEMENT_COUNT_AFTER_ROLLBACK " + OMNISYS.db.count(movements_tbl, count_movements)
+
+    set_category_name("kitchen")
+    got = OMNISYS.db.select(categories_tbl, capture_category_id)
+    reset_output()
+    by_cat = OMNISYS.db.select(products_tbl, report_products_in_current_category)
+    show "CATEGORY_QUERY " + output_lines
+
+    set_threshold(5)
+    reset_output()
+    low = OMNISYS.db.select(products_tbl, report_low_stock)
+    show "LOW_STOCK " + output_lines
+
+    set_prefix_state("ha")
+    reset_output()
+    pref = OMNISYS.db.select(products_tbl, report_prefix_match)
+    show "PREFIX_QUERY " + output_lines
+
+    reset_output()
+    joined = OMNISYS.db.select(products_tbl, join_report)
+    show "JOIN_VIEW " + output_lines
+
+    show "SCHEMA_PRODUCTS"
+    show OMNISYS.db.schema(products_tbl)
+end
+
+when app starts:
+    dbh = 0
+    categories_tbl = 0
+    products_tbl = 0
+    movements_tbl = 0
+    output_lines = ""
+    captured_stock = 0
+    captured_price = 0
+    captured_category_id = 0
+    captured_category_name = ""
+    reverted = 0
+    current_prefix = ""
+    current_prefix_len = 0
+    current_threshold = 0
+    current_category_name = ""
+    current_category_id = 0
+    target_id = 0
+    reset_output()
+    build_inventory()
+    run_scenario()
+    show "done"
+end

@@ -82,7 +82,7 @@ The following words are reserved and MUST NOT be used as identifiers:
 
 ```
 when  end  if  else  then  fn  return  show  uses  reads
-writes  pure  UI  scene  require  ensure  and  or  not
+writes  borrows  pure  UI  scene  require  ensure  and  or  not
 is  true  false
 ```
 
@@ -276,12 +276,50 @@ after the function signature and before the body statements:
 uses <capability> ...      # capabilities it may invoke
 reads <resource> ...       # resources it may read
 writes <resource> ...      # resources it may write
+borrows <capability> ...   # capabilities borrowed from the caller for this call
 ```
 
 `pure` is a shorthand for "uses nothing, reads nothing, writes nothing".
 
+### 8.1.1 Capability borrowing / delegation
+A function may declare `borrows <capability>` instead of `uses <capability>`.
+Semantics (Rust-lifetime style for effects):
+
+- The borrowed capability token is provided by the caller **for the duration
+  of the call only**; it expires when the function returns.
+- Inside the borrowing function's body, the borrowed capability may be
+  exercised exactly as if it were declared with `uses` — no `uses`
+  declaration is required for it.
+- Every call site of a borrowing function MUST provide the borrowed
+  capability via its own `uses`, `reads`, `writes`, or `borrows` clauses,
+  or the program is rejected (E-EFFECT-012). The top-level app block is the
+  ultimate owner and is exempt.
+- A borrowing function MUST actually exercise each borrowed capability inside
+  its body; declaring `borrows` without use is a dangling borrow (E-EFFECT-011).
+- `borrows` is effectful: combining `pure` with `borrows` is rejected
+  (E-EFFECT-010). Borrows may be re-borrowed down a call chain (a caller with
+  `borrows X` may satisfy a callee's `borrows X`).
+
+```omni
+fn read_cfg() -> Text:
+    borrows network
+    return http_get("http://example.com")
+end
+
+fn handler() -> Text:
+    uses network        # provides the token to read_cfg
+    return read_cfg()
+end
+```
+
 ### 8.2 Capability vocabulary
-`network`, `filesystem`, `database`, `camera`, `microphone`, `GPU`, `process`, `secrets`
+`network`, `filesystem`, `database`, `camera`, `microphone`, `GPU`, `process`, `secrets`, `panic`
+
+`panic` marks functions that may abort control flow (throw) at runtime rather
+than returning. A `pure` function must never throw, so a `pure` function that
+calls an abort-capable OMNISYS function (`core.panic`, `error.throw_error`,
+fallible serde decoders such as `json_decode`/`base64_decode`) is rejected;
+callers declare `uses panic`.
 
 ### 8.3 Per-back-end capability check (MANDATORY)
 Each back-end declares which capabilities it can provide (see Section 13.3).
@@ -1001,7 +1039,7 @@ return_stmt    ::= 'return' expression
 show_stmt      ::= 'show' expression
 ui_block       ::= 'UI' ':' NEWLINE RAW_HTML 'end'
 
-effect_clause  ::= ('uses' | 'reads' | 'writes') IDENTIFIER+ | 'pure'
+effect_clause  ::= ('uses' | 'reads' | 'writes' | 'borrows') IDENTIFIER+ | 'pure'
 parameter_list ::= parameter (',' parameter)*
 parameter      ::= IDENTIFIER ':' TYPE
 type           ::= 'Number' | 'Text' | 'Boolean' | 'List' | 'None'

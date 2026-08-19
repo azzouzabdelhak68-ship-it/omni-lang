@@ -1,0 +1,17 @@
+# Probe 1: minimal UI block + live slot + click action.
+# Question: does the emitted HTML re-render slots on click (live link), and do
+# click handlers survive re-render (bindClicks is called once)?
+
+when app starts:
+    count = 0
+end
+
+fn inc:
+    writes count
+    count = count + 1
+end
+
+UI:
+<h1>{count}</h1>
+<button click="inc">Increment</button>
+end

@@ -1,0 +1,14 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+type Task = { title: Text, completed: Boolean, priority: Number, category: Text }
+
+fn create_task(title: Text, priority: Number, category: Text) -> Task:
+    pure
+    return Task(title=title, completed=false, priority=priority, category=category)
+end
+
+when app starts:
+    t = create_task("test", 1, "cat")
+    show "created"
+end

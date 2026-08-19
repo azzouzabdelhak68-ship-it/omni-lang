@@ -1,0 +1,12 @@
+# Test with type declaration after imports
+
+import OMNISYS.core
+
+type P1 = {
+    x: Number,
+    y: Number,
+}
+
+when app starts:
+    show "hello"
+end

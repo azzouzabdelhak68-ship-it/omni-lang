@@ -5,15 +5,17 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def valid_fixtures():
     """Return list of valid fixture file paths"""
-    return list(Path("tests/fixtures/valid").glob("*.omni"))
+    return list(Path('tests/fixtures/valid').glob('*.omni'))
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture(scope='session')
 def invalid_fixtures():
     """Return list of invalid fixture file paths"""
-    return list(Path("tests/fixtures/invalid").glob("*.omni"))
+    return list(Path('tests/fixtures/invalid').glob('*.omni'))
+
 
 @pytest.fixture
 def basic_omni_code():
@@ -35,6 +37,7 @@ UI:
 <button click="change_greeting">Change it</button>
 end
 """
+
 
 @pytest.fixture
 def function_with_effects():
@@ -58,6 +61,7 @@ when app starts:
 end
 """
 
+
 @pytest.fixture
 def invalid_network_omni():
     """Invalid OmniScript: missing network capability"""
@@ -70,6 +74,7 @@ when app starts:
     fetch_data("https://api.example.com")
 end
 """
+
 
 @pytest.fixture
 def pure_with_effects():
@@ -85,41 +90,51 @@ when app starts:
 end
 """
 
+
 @pytest.fixture
 def sample_tokens():
     """Pre-tokenized basic program"""
-    from omni_compiler.lexer import tokenize
-    code = "x = 42"
-    return tokenize("x = 42")
+    from omni_compiler.lexer import tokenize  # noqa: PLC0415
+
+    return tokenize('x = 42')
+
 
 @pytest.fixture
 def sample_ast():
     """Pre-parsed AST"""
-    from omni_compiler.lexer import tokenize
-    from omni_compiler.parser import parse
-    return parse(tokenize("x = 42"))
+    from omni_compiler.lexer import tokenize  # noqa: PLC0415
+    from omni_compiler.parser import parse  # noqa: PLC0415
+
+    return parse(tokenize('x = 42'))
+
 
 @pytest.fixture
 def sample_symbol_table():
     """Pre-analyzed symbol table"""
-    from omni_compiler.checker import analyze
-    from omni_compiler.lexer import tokenize
-    from omni_compiler.parser import parse
-    return analyze(parse(tokenize("x = 42")))
+    from omni_compiler.checker import analyze  # noqa: PLC0415
+    from omni_compiler.lexer import tokenize  # noqa: PLC0415
+    from omni_compiler.parser import parse  # noqa: PLC0415
+
+    return analyze(parse(tokenize('x = 42')))
+
 
 @pytest.fixture
 def sample_mir():
     """Pre-built MIR"""
-    from omni_compiler.checker import analyze
-    from omni_compiler.lexer import tokenize
-    from omni_compiler.mir import to_mir
-    from omni_compiler.parser import parse
-    return to_mir(parse(tokenize("x = 42")), analyze(parse(tokenize("x = 42"))))
+    from omni_compiler.checker import analyze  # noqa: PLC0415
+    from omni_compiler.lexer import tokenize  # noqa: PLC0415
+    from omni_compiler.mir import to_mir  # noqa: PLC0415
+    from omni_compiler.parser import parse  # noqa: PLC0415
+
+    return to_mir(parse(tokenize('x = 42')), analyze(parse(tokenize('x = 42'))))
+
 
 # Custom pytest markers
 def pytest_configure(config):
-    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
-    config.addinivalue_line("markers", "integration: marks tests as integration tests")
-    config.addinivalue_line("markers", "unit: marks tests as unit tests")
-    config.addinivalue_line("markers", "property: marks tests as property-based tests")
-    config.addinivalue_line("markers", "mutation: marks tests as mutation tests")
+    config.addinivalue_line(
+        'markers', 'slow: marks tests as slow (deselect with \'-m "not slow"\')'
+    )
+    config.addinivalue_line('markers', 'integration: marks tests as integration tests')
+    config.addinivalue_line('markers', 'unit: marks tests as unit tests')
+    config.addinivalue_line('markers', 'property: marks tests as property-based tests')
+    config.addinivalue_line('markers', 'mutation: marks tests as mutation tests')

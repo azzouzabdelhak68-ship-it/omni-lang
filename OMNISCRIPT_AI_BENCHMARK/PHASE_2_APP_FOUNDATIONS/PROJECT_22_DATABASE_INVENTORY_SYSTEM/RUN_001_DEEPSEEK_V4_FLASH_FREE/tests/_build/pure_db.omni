@@ -1,0 +1,11 @@
+import OMNISYS.db
+
+fn bad() -> None:
+    pure
+    d = OMNISYS.db.create_db("x")
+    show d
+end
+
+when app starts:
+    bad()
+end

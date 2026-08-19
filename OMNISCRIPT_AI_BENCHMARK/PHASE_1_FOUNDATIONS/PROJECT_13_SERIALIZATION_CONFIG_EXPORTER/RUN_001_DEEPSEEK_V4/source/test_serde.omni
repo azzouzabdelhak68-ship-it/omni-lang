@@ -1,0 +1,14 @@
+import OMNISYS.serde
+import OMNISYS.fs
+
+when app starts:
+    config_text = omnisys.fs.read_file("config.json")
+    show "Read config: " + config_text
+    
+    config = omnisys.serde.json_decode(config_text)
+    show "Parsed: " + config
+    
+    schema = {type: "map", fields: {name: {type: "text"}, version: {type: "text"}, debug: {type: "boolean"}}}
+    valid = omnisys.serde.schema_validate(config, schema)
+    show "Valid: " + valid
+end

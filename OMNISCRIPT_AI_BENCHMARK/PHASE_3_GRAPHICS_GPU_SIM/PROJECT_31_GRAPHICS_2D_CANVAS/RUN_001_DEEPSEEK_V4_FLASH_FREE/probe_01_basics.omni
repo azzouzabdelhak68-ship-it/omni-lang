@@ -1,0 +1,31 @@
+import OMNISYS.graphics
+import OMNISYS.collections
+import OMNISYS.core
+
+fn make_shape(kind: Text) -> List:
+    return [kind, 0, 0, 0, 0, "red", "blue", 0]
+end
+
+fn tick(shapes: List, dt: Number) -> List:
+    return shapes
+end
+
+when app starts:
+    canvas = omnisys.graphics.canvas(800, 600)
+    canvas = omnisys.graphics.clear(canvas, "#ffffff")
+    canvas = omnisys.graphics.rect(canvas, 10, 20, 100, 50, "#ff0000")
+    ops = omnisys.graphics.render(canvas)
+    count = omnisys.core.length(ops)
+    show "probe1 opcount={count}"
+    shapes = []
+    shapes = omnisys.collections.list_push(shapes, make_shape("rect"))
+    first = omnisys.collections.list_get(shapes, 0)
+    show "probe2 kind={first}"
+    n = omnisys.core.length(shapes)
+    show "probe3 count={n}"
+    canvas2 = omnisys.graphics.circle(canvas, 50, 50, 10, "#00ff00")
+    ops2 = omnisys.graphics.render(canvas2)
+    n2 = omnisys.core.length(ops2)
+    show "probe4 ops2={n2}"
+    show "probe5 done"
+end

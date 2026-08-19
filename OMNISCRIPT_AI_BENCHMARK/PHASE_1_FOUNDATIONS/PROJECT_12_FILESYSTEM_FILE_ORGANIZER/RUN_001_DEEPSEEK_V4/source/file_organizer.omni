@@ -1,0 +1,298 @@
+import OMNISYS.fs
+import OMNISYS.core
+import OMNISYS.collections
+
+# ============================================================
+# Type Definitions
+# ============================================================
+
+type FileNode = { path: Text, name: Text, size: Number, is_dir: Boolean }
+type DirTree = { root: Text, entries: List }
+type SyncOp = { op: Text, src: Text, dst: Text, is_dir: Boolean }
+# type SyncPlan = List
+# type OrgRule = { extensions: List, target_dir: Text }
+# type OrgPlan = List
+
+# ============================================================
+# Pure Path Helpers (wrappers for omnisys.fs pure functions)
+# ============================================================
+
+fn join_path(a: Text, b: Text) -> Text:
+    pure
+    return omnisys.fs.join_path(a, b)
+end
+
+fn basename(path: Text) -> Text:
+    pure
+    return omnisys.fs.basename(path)
+end
+
+fn dirname(path: Text) -> Text:
+    pure
+    return omnisys.fs.dirname(path)
+end
+
+fn get_extension(filename: Text) -> Text:
+    pure
+    # Placeholder - not used in current implementation
+    return ""
+end
+
+# ============================================================
+# Effectful Filesystem Scanning
+# ============================================================
+
+fn scan_directory(path: Text) -> List:
+    uses filesystem
+    # Returns list of { name, path, size, is_dir }
+    entries = omnisys.fs.list_dir(path)
+    result = []
+    for entry in entries:
+        full_path = join_path(path, entry)
+        size_check = omnisys.fs.file_size(full_path)
+        is_dir = omnisys.fs.file_exists(full_path) and (size_check is -1)
+        size = omnisys.fs.file_size(full_path)
+        if is_dir:
+            size = 0
+        end
+        entry_obj = { name: entry, path: full_path, size: size, is_dir: is_dir }
+        result = omnisys.collections.list_push(result, entry_obj)
+    end
+    return result
+end
+
+fn scan_tree_recursive(path: Text) -> List:
+    uses filesystem
+    entries = scan_directory(path)
+    all_entries = entries
+    for entry in entries:
+        if entry.is_dir:
+            sub_entries = scan_tree_recursive(entry.path)
+            all_entries = omnisys.collections.list_append(all_entries, sub_entries)
+        end
+    end
+    return all_entries
+end
+
+# ============================================================
+# Pure Planning Functions (operate on in-memory data)
+# ============================================================
+
+fn build_tree_from_listing(entries: List, root: Text) -> Map:
+    pure
+    # Build nested tree structure from flat listing
+    # For simplicity, return the flat list with root info
+    return { root: root, entries: entries }
+end
+
+fn compute_sync_plan(source_entries: List, target_entries: List, source_root: Text, target_root: Text) -> List:
+    pure
+    # Compare two directory listings and compute sync operations
+    # Operations: create, update, delete, skip
+    plan = []
+    
+    # Build maps for quick lookup
+    source_map = {}
+    for entry in source_entries:
+        rel_path = entry.path
+        # Remove source_root prefix to get relative path
+        # Simplified: just use the full path for now
+        source_map[rel_path] = entry
+    end
+    
+    target_map = {}
+    for entry in target_entries:
+        rel_path = entry.path
+        target_map[rel_path] = entry
+    end
+    
+    # Check source entries - create or update in target
+    for entry in source_entries:
+        rel_path = entry.path
+        target_entry = target_map[rel_path]
+        if target_entry is None:
+            # File/dir doesn't exist in target - create
+            op = { op: "create", src: entry.path, dst: rel_path, is_dir: entry.is_dir }
+            plan = omnisys.collections.list_push(plan, op)
+        else:
+            # Exists in both - check if different
+            if entry.is_dir is false and target_entry.is_dir is false:
+                if entry.size is not target_entry.size:
+                    op = { op: "update", src: entry.path, dst: rel_path, is_dir: false }
+                    plan = omnisys.collections.list_push(plan, op)
+                else:
+                    op = { op: "skip", src: entry.path, dst: rel_path, is_dir: false }
+                    plan = omnisys.collections.list_push(plan, op)
+                end
+            else:
+                # Both directories - skip
+                op = { op: "skip", src: entry.path, dst: rel_path, is_dir: true }
+                plan = omnisys.collections.list_push(plan, op)
+            end
+        end
+    end
+    
+    # Check target entries - delete if not in source
+    for entry in target_entries:
+        rel_path = entry.path
+        source_entry = source_map[rel_path]
+        if source_entry is None:
+            op = { op: "delete", src: "", dst: rel_path, is_dir: entry.is_dir }
+            plan = omnisys.collections.list_push(plan, op)
+        end
+    end
+    
+    return plan
+end
+
+fn order_sync_plan(plan: List) -> List:
+    pure
+    # Order operations: directories first (for create), files, then deletes (reverse)
+    # For simplicity, return as-is for now
+    return plan
+end
+
+fn compute_org_plan(entries: List, rules: List) -> List:
+    pure
+    # Compute organization moves based on extension rules
+    plan = []
+    for entry in entries:
+        if entry.is_dir is false:
+            # Check each rule
+            for rule in rules:
+                # Simplified: check if extension matches
+                # In real impl, would check entry.name against rule.extensions
+                matched = false  # placeholder
+                if matched:
+                    target_path = join_path(rule.target_dir, entry.name)
+                    op = { op: "move", src: entry.path, dst: target_path, is_dir: false }
+                    plan = omnisys.collections.list_push(plan, op)
+                    break
+                end
+            end
+        end
+    end
+    return plan
+end
+
+# ============================================================
+# Effectful Execution Functions
+# ============================================================
+
+fn execute_sync_plan(plan: List, target_root: Text) -> Boolean:
+    uses filesystem
+    success = true
+    for op in plan:
+        op_type = op.op
+        dst_full = join_path(target_root, op.dst)
+        
+        if op_type is "create":
+            if op.is_dir:
+                ok = omnisys.fs.make_dir(dst_full)
+                if ok is false:
+                    success = false
+                end
+            else:
+                # Copy file from src to dst
+                ok = omnisys.fs.copy_file(op.src, dst_full)
+                if ok is false:
+                    success = false
+                end
+            end
+        else if op_type is "update":
+            ok = omnisys.fs.copy_file(op.src, dst_full)
+            if ok is false:
+                success = false
+            end
+        else if op_type is "delete":
+            if op.is_dir:
+                ok = omnisys.fs.remove_dir(dst_full)
+                if ok is false:
+                    success = false
+                end
+            else:
+                ok = omnisys.fs.delete_file(dst_full)
+                if ok is false:
+                    success = false
+                end
+            end
+        end
+    end
+    return success
+end
+
+fn execute_org_plan(plan: List) -> Boolean:
+    uses filesystem
+    success = true
+    for op in plan:
+        if op.op is "move":
+            # Ensure target directory exists
+            target_dir = dirname(op.dst)
+            if omnisys.fs.file_exists(target_dir) is false:
+                omnisys.fs.make_dir(target_dir)
+            end
+            ok = omnisys.fs.rename_file(op.src, op.dst)
+            if ok is false:
+                success = false
+            end
+        end
+    end
+    return success
+end
+
+# ============================================================
+# High-level Operations
+# ============================================================
+
+fn sync_directories(source: Text, target: Text) -> Text:
+    uses filesystem
+    # Scan both directories
+    source_entries = scan_tree_recursive(source)
+    target_entries = scan_tree_recursive(target)
+    
+    # Compute plan
+    plan = compute_sync_plan(source_entries, target_entries, source, target)
+    ordered_plan = order_sync_plan(plan)
+    
+    # Execute
+    ok = execute_sync_plan(ordered_plan, target)
+    if ok:
+        return "sync completed successfully"
+    else:
+        return "sync completed with errors"
+    end
+end
+
+fn organize_directory(source: Text, rules: List) -> Text:
+    uses filesystem
+    entries = scan_tree_recursive(source)
+    plan = compute_org_plan(entries, rules)
+    ok = execute_org_plan(plan)
+    if ok:
+        return "organization completed successfully"
+    else:
+        return "organization completed with errors"
+    end
+end
+
+# ============================================================
+# Demo / Entry Point
+# ============================================================
+
+when app starts:
+    # Demo: show that the module loads and functions type-check
+    show "File Organizer module loaded"
+    show "Available operations: sync_directories, organize_directory"
+    
+    # Test path helpers
+    test_path = "documents/reports/quarterly.pdf"
+    base = basename(test_path)
+    dir = dirname(test_path)
+    joined = join_path(dir, base)
+    show "Path test: base=" + base + ", dir=" + dir + ", joined=" + joined
+    
+    # Test scan current directory
+    entries = scan_directory(".")
+    count = omnisys.core.length(entries)
+    show "Scanned " + omnisys.core.type_of(count) + " entries in current directory"
+end

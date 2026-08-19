@@ -44,6 +44,10 @@
  * like) is provided for the OmniScript bridge; the OmniScript parser only
  * accepts call names with a single dot, so the .omni source uses these flat
  * names, which resolve to the canonical `sim.actor.*` implementation above.
+ *
+ * The flat namespace also carries the ECS runtime the platform advertises
+ * (v3.4 C-02): sim.entity/sim.system/sim.run(steps)/sim.query/component/get/
+ * remove_entity/entities/snapshot, world-less to match the flat call shape.
  */
 
 const VERSION = "5.3.0";
@@ -607,6 +611,78 @@ function createRuntime() {
     };
   }
 
+  // ------------------------------------------------------------- ECS runtime
+  // Flat `sim.*` ECS bridge (v3.4 C-02 parity with `omnisys.sim`). The
+  // platform advertises an ECS API (world/entity/component/system/query), so
+  // the flat namespace used by OmniScript source must provide it — previously
+  // only the actor aliases shipped and consumers had to inject their own
+  // runtime. State is implicit (no explicit world handle) to match the flat
+  // single-dot call shape the parser accepts:
+  //   sim.entity(name, [components])        sim.system(name, fn, [components])
+  //   sim.run(steps)                        sim.query(component) -> [names]
+  // plus the registry `omnisys.sim` surface in world-less form.
+  function createEcs() {
+    const state = { entities: {}, order: [], systems: [], step: 0 };
+    return {
+      entity(name, comps) {
+        if (!Object.prototype.hasOwnProperty.call(state.entities, name)) {
+          const components = {};
+          for (const c of (comps || [])) components[String(c)] = null;
+          state.entities[name] = components;
+          state.order.push(name);
+        }
+        return name;
+      },
+      component(name, component, value) {
+        if (!Object.prototype.hasOwnProperty.call(state.entities, name)) {
+          state.entities[name] = {};
+          state.order.push(name);
+        }
+        state.entities[name][String(component)] = value;
+        return name;
+      },
+      get(name, component) {
+        const entity = state.entities[name];
+        if (!entity) throw new Error("sim.get: unknown entity " + name);
+        return entity[String(component)];
+      },
+      system(name, fn, comps) {
+        state.systems.push({ name, fn, comps: (comps || []).map(String) });
+        return name;
+      },
+      run(steps) {
+        const n = Math.max(0, steps | 0);
+        for (let i = 0; i < n; i += 1) {
+          for (const sys of state.systems) sys.fn(state);
+          state.step += 1;
+        }
+        return steps;
+      },
+      query(component) {
+        return state.order.filter((name) =>
+          Object.prototype.hasOwnProperty.call(state.entities[name], String(component))
+        );
+      },
+      remove_entity(name) {
+        delete state.entities[name];
+        state.order = state.order.filter((x) => x !== name);
+        return name;
+      },
+      entities() {
+        return state.order.slice();
+      },
+      snapshot() {
+        return {
+          tag: "world",
+          step: state.step,
+          systems: state.systems.map((s) => s.name),
+          entities: JSON.parse(JSON.stringify(state.entities)),
+          order: state.order.slice(),
+        };
+      },
+    };
+  }
+
   // ------------------------------------------------------------ public object
   const cluster = {
     create: clusterCreate,
@@ -639,14 +715,16 @@ function createRuntime() {
 
   // Flat `sim.*` aliases — the OmniScript bridge. The OmniScript parser only
   // accepts call names with a single dot (`sim.spawn`, `sim.partition`, ...),
-  // so the .omni source uses these; they all delegate to `sim.actor.*`.
+  // so the .omni source uses these; they all delegate to `sim.actor.*` and the
+  // flat ECS runtime above.
+  const ecs = createEcs();
   const sim = {
     actor,
     version: VERSION,
     spawn: (nodeId, name, behavior, initialState) => actorSpawn(undefined, nodeId, name, behavior, initialState),
     send: (target, msg) => actorSend(undefined, target, msg),
     sender: () => actorSender(),
-    run: () => runCluster(undefined),
+    run: (steps) => (typeof steps === "number" ? ecs.run(steps) : runCluster(undefined)),
     step: () => stepCluster(undefined),
     steps: (n) => stepsCluster(undefined, n),
     cluster: (name, opts) => clusterCreate(name, opts),
@@ -661,6 +739,15 @@ function createRuntime() {
     deadletters: () => actorDeadletters(undefined),
     stats: () => actorStatistics(undefined),
     status: () => (currentCluster ? clusterStatus(undefined) : {}),
+    // Flat ECS (see createEcs): world-less entity/component/system/query.
+    entity: ecs.entity,
+    component: ecs.component,
+    get: ecs.get,
+    system: ecs.system,
+    query: ecs.query,
+    remove_entity: ecs.remove_entity,
+    entities: ecs.entities,
+    snapshot: ecs.snapshot,
   };
 
   return { sim, version: VERSION };

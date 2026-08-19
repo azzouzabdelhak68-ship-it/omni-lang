@@ -1,0 +1,355 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+type Task = { title: Text, completed: Boolean, priority: Number, category: Text }
+
+fn create_task(title: Text, priority: Number, category: Text) -> Task:
+    pure
+    return Task(title=title, completed=false, priority=priority, category=category)
+end
+
+fn create_task_completed(title: Text, priority: Number, category: Text, completed: Boolean) -> Task:
+    pure
+    return Task(title=title, completed=completed, priority=priority, category=category)
+end
+
+fn filter_completed(tasks: List) -> List:
+    pure
+    result = []
+    for task in tasks:
+        if task.completed is true:
+            result = omnisys.collections.list_push(result, task)
+        end
+    end
+    return result
+end
+
+fn filter_active(tasks: List) -> List:
+    pure
+    result = []
+    for task in tasks:
+        if task.completed is false:
+            result = omnisys.collections.list_push(result, task)
+        end
+    end
+    return result
+end
+
+fn search_by_category(tasks: List, category: Text) -> List:
+    pure
+    result = []
+    for task in tasks:
+        if task.category is category:
+            result = omnisys.collections.list_push(result, task)
+        end
+    end
+    return result
+end
+
+fn contains_substring_rec(text: Text, substring: Text, start: Number) -> Boolean:
+    pure
+    text_len = omnisys.core.length(text)
+    sub_len = omnisys.core.length(substring)
+    max_start = text_len - sub_len
+    if start greater than max_start:
+        return false
+    end
+    slice = omnisys.collections.list_slice(text, start, start + sub_len)
+    if slice is substring:
+        return true
+    end
+    return contains_substring_rec(text, substring, start + 1)
+end
+
+fn contains_substring(text: Text, substring: Text) -> Boolean:
+    pure
+    return contains_substring_rec(text, substring, 0)
+end
+
+fn search_by_title(tasks: List, substring: Text) -> List:
+    pure
+    result = []
+    for task in tasks:
+        if contains_substring(task.title, substring):
+            result = omnisys.collections.list_push(result, task)
+        end
+    end
+    return result
+end
+
+fn completion_percentage(tasks: List) -> Number:
+    pure
+    total = omnisys.core.length(tasks)
+    if total is 0:
+        return 0
+    end
+    completed_count = 0
+    for task in tasks:
+        if task.completed is true:
+            completed_count = completed_count + 1
+        end
+    end
+    return (completed_count * 100) / total
+end
+
+fn high_priority_remaining(tasks: List) -> Number:
+    pure
+    count = 0
+    for task in tasks:
+        if task.completed is false and task.priority is 1:
+            count = count + 1
+        end
+    end
+    return count
+end
+
+fn count_by_priority(tasks: List, priority: Number) -> Number:
+    pure
+    count = 0
+    for task in tasks:
+        if task.priority is priority:
+            count = count + 1
+        end
+    end
+    return count
+end
+
+fn toggle_task_completion(tasks: List, index: Number) -> List:
+    pure
+    len = omnisys.core.length(tasks)
+    if index less than 0 or index greater or equal len:
+        return tasks
+    end
+    
+    result = []
+    i = 0
+    for task in tasks:
+        if i is index:
+            new_task = Task(
+                title=task.title,
+                completed=not task.completed,
+                priority=task.priority,
+                category=task.category
+            )
+            result = omnisys.collections.list_push(result, new_task)
+        else:
+            result = omnisys.collections.list_push(result, task)
+        end
+        i = i + 1
+    end
+    return result
+end
+
+fn set_task_completion(tasks: List, index: Number, completed: Boolean) -> List:
+    pure
+    len = omnisys.core.length(tasks)
+    if index less than 0 or index greater or equal len:
+        return tasks
+    end
+    
+    result = []
+    i = 0
+    for task in tasks:
+        if i is index:
+            new_task = Task(
+                title=task.title,
+                completed=completed,
+                priority=task.priority,
+                category=task.category
+            )
+            result = omnisys.collections.list_push(result, new_task)
+        else:
+            result = omnisys.collections.list_push(result, task)
+        end
+        i = i + 1
+    end
+    return result
+end
+
+fn remove_task(tasks: List, index: Number) -> List:
+    pure
+    len = omnisys.core.length(tasks)
+    if index less than 0 or index greater or equal len:
+        return tasks
+    end
+    
+    result = []
+    i = 0
+    for task in tasks:
+        if i is not index:
+            result = omnisys.collections.list_push(result, task)
+        end
+        i = i + 1
+    end
+    return result
+end
+
+fn format_task(task: Task) -> Text:
+    pure
+    status = "✓"
+    if task.completed is false:
+        status = "✗"
+    end
+    priority_text = "LOW"
+    if task.priority is 1:
+        priority_text = "HIGH"
+    else:
+        if task.priority is 2:
+            priority_text = "MED"
+        end
+    end
+    return "[" + status + "] " + task.title + " | " + priority_text + " | " + task.category
+end
+
+fn format_task_report(tasks: List) -> Text:
+    pure
+    if omnisys.core.length(tasks) is 0:
+        return "No tasks."
+    end
+    
+    report = "=== TASK REPORT ===\n"
+    total = omnisys.core.length(tasks)
+    completed = omnisys.core.length(filter_completed(tasks))
+    active = omnisys.core.length(filter_active(tasks))
+    pct = completion_percentage(tasks)
+    high_remaining = high_priority_remaining(tasks)
+    
+    report = report + "Total: " + omnisys.core.type_of(total) + " | Completed: " + omnisys.core.type_of(completed) + " | Active: " + omnisys.core.type_of(active) + " | Completion: " + omnisys.core.type_of(pct) + "% | High-Pri Remaining: " + omnisys.core.type_of(high_remaining) + "\n"
+    report = report + "--------------------\n"
+    
+    i = 1
+    for task in tasks:
+        report = report + omnisys.core.type_of(i) + ". " + format_task(task) + "\n"
+        i = i + 1
+    end
+    
+    report = report + "====================\n"
+    return report
+end
+
+fn format_category_summary(tasks: List) -> Text:
+    pure
+    report = "=== CATEGORY SUMMARY ===\n"
+    categories_seen = []
+    
+    for task in tasks:
+        cat = task.category
+        found = false
+        for seen in categories_seen:
+            if seen is cat:
+                found = true
+                break
+            end
+        end
+        if found is false:
+            categories_seen = omnisys.collections.list_push(categories_seen, cat)
+        end
+    end
+    
+    for cat in categories_seen:
+        cat_tasks = search_by_category(tasks, cat)
+        cat_total = omnisys.core.length(cat_tasks)
+        cat_completed = omnisys.core.length(filter_completed(cat_tasks))
+        cat_pct = 0
+        if cat_total greater than 0:
+            cat_pct = (cat_completed * 100) / cat_total
+        end
+        report = report + cat + ": " + omnisys.core.type_of(cat_completed) + "/" + omnisys.core.type_of(cat_total) + " (" + omnisys.core.type_of(cat_pct) + "%)\n"
+    end
+    
+    report = report + "==========================\n"
+    return report
+end
+
+fn init_task_list() -> None:
+    writes task_list
+    task_list = []
+end
+
+fn add_task_to_list(task: Task) -> None:
+    uses console
+    writes task_list
+    task_list = omnisys.collections.list_push(task_list, task)
+end
+
+fn demo_toggle_task(index: Number) -> None:
+    uses console
+    reads task_list
+    writes task_list
+    task_list = toggle_task_completion(task_list, index)
+end
+
+fn demo_remove_task(index: Number) -> None:
+    uses console
+    reads task_list
+    writes task_list
+    task_list = remove_task(task_list, index)
+end
+
+fn show_current_report() -> None:
+    uses console
+    reads task_list
+    show format_task_report(task_list)
+end
+
+fn show_category_summary() -> None:
+    uses console
+    reads task_list
+    show format_category_summary(task_list)
+end
+
+when app starts:
+    task_list = []
+    init_task_list()
+    
+    t1 = create_task("Implement user authentication", 1, "backend")
+    t2 = create_task("Design database schema", 1, "backend")
+    t3 = create_task("Build REST API endpoints", 2, "backend")
+    t4 = create_task("Create React dashboard", 2, "frontend")
+    t5 = create_task("Write unit tests", 3, "testing")
+    t6 = create_task("Setup CI/CD pipeline", 2, "devops")
+    t7 = create_task("Document API", 3, "documentation")
+    
+    t1_done = create_task_completed("Implement user authentication", 1, "backend", true)
+    t3_done = create_task_completed("Build REST API endpoints", 2, "backend", true)
+    t5_done = create_task_completed("Write unit tests", 3, "testing", true)
+    
+    add_task_to_list(t1_done)
+    add_task_to_list(t2)
+    add_task_to_list(t3_done)
+    add_task_to_list(t4)
+    add_task_to_list(t5_done)
+    add_task_to_list(t6)
+    add_task_to_list(t7)
+    
+    show "=== INITIAL TASK REPORT ==="
+    show_current_report()
+    
+    show "\n=== CATEGORY SUMMARY ==="
+    show_category_summary()
+    
+    show "\n=== SEARCH: backend tasks ==="
+    backend_tasks = search_by_category(task_list, "backend")
+    show format_task_report(backend_tasks)
+    
+    show "\n=== SEARCH: tasks containing 'API' ==="
+    api_tasks = search_by_title(task_list, "API")
+    show format_task_report(api_tasks)
+    
+    show "\n=== TOGGLE TASK 1 (Design database schema) ==="
+    demo_toggle_task(1)
+    show_current_report()
+    
+    show "\n=== TOGGLE TASK 3 (Create React dashboard) ==="
+    demo_toggle_task(3)
+    show_current_report()
+    
+    show "\n=== REMOVE TASK 5 (Setup CI/CD pipeline) ==="
+    demo_remove_task(5)
+    show_current_report()
+    
+    show "\n=== FINAL CATEGORY SUMMARY ==="
+    show_category_summary()
+    
+    show "\n=== DEMO COMPLETE ==="
+end

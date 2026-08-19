@@ -1,0 +1,230 @@
+# Benchmark Task 3.1 — Interactive 2D Vector Drawing Canvas (OMNISYS v7 Phase 3).
+#
+# The OMNISYS.graphics runtime records 2D draw operations on a canvas and has
+# NO transform ops, so every shape is modelled as a flat list:
+#   [kind, x, y, w, h, fill, stroke, rotation, scale, vx, vy, vr]
+# and all position/rotation/scale math is implemented here as pure functions.
+# No map literals, no list indexing (list_get), no boolean and/or/not.
+
+import OMNISYS.graphics
+import OMNISYS.collections
+import OMNISYS.core
+
+# ---- Shape model ----------------------------------------------------------
+
+fn add_shape(shapes: List, kind: Text, x: Number, y: Number, w: Number,
+             h: Number, fill: Text, stroke: Text, rotation: Number,
+             scale: Number, vx: Number, vy: Number, vr: Number) -> List:
+    nshape = [kind, x, y, w, h, fill, stroke, rotation, scale, vx, vy, vr]
+    return omnisys.collections.list_push(shapes, nshape)
+end
+
+fn move_shape(shapes: List, index: Number, dx: Number, dy: Number) -> List:
+    ms_shape = omnisys.collections.list_get(shapes, index)
+    ms_x = omnisys.collections.list_get(ms_shape, 1)
+    ms_y = omnisys.collections.list_get(ms_shape, 2)
+    ms_x = ms_x + dx
+    ms_y = ms_y + dy
+    omnisys.collections.list_set(ms_shape, 1, ms_x)
+    omnisys.collections.list_set(ms_shape, 2, ms_y)
+    return shapes
+end
+
+fn delete_shape(shapes: List, index: Number) -> List:
+    dl_n = omnisys.core.length(shapes)
+    if index >= 0:
+        if index < dl_n:
+            return omnisys.collections.list_remove(shapes, index)
+        end
+    end
+    return shapes
+end
+
+fn select_shape(shapes: List, index: Number) -> Number:
+    sl_n = omnisys.core.length(shapes)
+    if index >= 0:
+        if index < sl_n:
+            return index
+        end
+    end
+    return 0 - 1
+end
+
+fn set_shape_color(shapes: List, index: Number, color: Text) -> List:
+    sc_n = omnisys.core.length(shapes)
+    if index >= 0:
+        if index < sc_n:
+            sc_shape = omnisys.collections.list_get(shapes, index)
+            omnisys.collections.list_set(sc_shape, 5, color)
+        end
+    end
+    return shapes
+end
+
+# ---- Transforms (position / rotation / scale) -----------------------------
+
+fn apply_transform(shapes: List, index: Number, dx: Number, dy: Number,
+                   rot_delta: Number, scale_delta: Number) -> List:
+    at_n = omnisys.core.length(shapes)
+    if index >= 0:
+        if index < at_n:
+            at_shape = omnisys.collections.list_get(shapes, index)
+            at_x = omnisys.collections.list_get(at_shape, 1)
+            at_y = omnisys.collections.list_get(at_shape, 2)
+            at_rot = omnisys.collections.list_get(at_shape, 7)
+            at_scale = omnisys.collections.list_get(at_shape, 8)
+            at_x = at_x + dx
+            at_y = at_y + dy
+            at_rot = at_rot + rot_delta
+            at_scale = at_scale + scale_delta
+            if at_scale < 0.1:
+                at_scale = 0.1
+            end
+            omnisys.collections.list_set(at_shape, 1, at_x)
+            omnisys.collections.list_set(at_shape, 2, at_y)
+            omnisys.collections.list_set(at_shape, 7, at_rot)
+            omnisys.collections.list_set(at_shape, 8, at_scale)
+        end
+    end
+    return shapes
+end
+
+# ---- Animation ------------------------------------------------------------
+
+fn tick(shapes: List, dt: Number) -> List:
+    for tk_shape in shapes:
+        tk_vx = omnisys.collections.list_get(tk_shape, 9)
+        tk_vy = omnisys.collections.list_get(tk_shape, 10)
+        tk_vr = omnisys.collections.list_get(tk_shape, 11)
+        tk_nx = omnisys.collections.list_get(tk_shape, 1) + tk_vx * dt
+        tk_ny = omnisys.collections.list_get(tk_shape, 2) + tk_vy * dt
+        tk_nrot = omnisys.collections.list_get(tk_shape, 7) + tk_vr * dt
+        omnisys.collections.list_set(tk_shape, 1, tk_nx)
+        omnisys.collections.list_set(tk_shape, 2, tk_ny)
+        omnisys.collections.list_set(tk_shape, 7, tk_nrot)
+    end
+    return shapes
+end
+
+# ---- Canvas rendering -----------------------------------------------------
+
+fn make_polygon_points(shape: List) -> List:
+    mp_x = omnisys.collections.list_get(shape, 1)
+    mp_y = omnisys.collections.list_get(shape, 2)
+    mp_w = omnisys.collections.list_get(shape, 3)
+    mp_h = omnisys.collections.list_get(shape, 4)
+    mp_pts = []
+    mp_pts = omnisys.collections.list_push(mp_pts, [mp_x, mp_y])
+    mp_pts = omnisys.collections.list_push(mp_pts, [mp_x + mp_w, mp_y])
+    mp_pts = omnisys.collections.list_push(mp_pts, [mp_x + mp_w, mp_y + mp_h])
+    mp_pts = omnisys.collections.list_push(mp_pts, [mp_x, mp_y + mp_h])
+    return mp_pts
+end
+
+fn render_scene(shapes: List, canvas: Canvas) -> Canvas:
+    for rs_shape in shapes:
+        rs_kind = omnisys.collections.list_get(rs_shape, 0)
+        rs_x = omnisys.collections.list_get(rs_shape, 1)
+        rs_y = omnisys.collections.list_get(rs_shape, 2)
+        rs_w = omnisys.collections.list_get(rs_shape, 3)
+        rs_h = omnisys.collections.list_get(rs_shape, 4)
+        rs_fill = omnisys.collections.list_get(rs_shape, 5)
+        rs_stroke = omnisys.collections.list_get(rs_shape, 6)
+        if rs_kind is "rect":
+            canvas = omnisys.graphics.rect(canvas, rs_x, rs_y, rs_w, rs_h, rs_fill)
+        else:
+            if rs_kind is "circle":
+                canvas = omnisys.graphics.circle(canvas, rs_x, rs_y, rs_w, rs_fill)
+            else:
+                if rs_kind is "line":
+                    canvas = omnisys.graphics.line(canvas, rs_x, rs_y, rs_w, rs_h, rs_stroke)
+                else:
+                    if rs_kind is "polygon":
+                        rs_pts = make_polygon_points(rs_shape)
+                        canvas = omnisys.graphics.polygon(canvas, rs_pts, rs_fill)
+                    end
+                end
+            end
+        end
+    end
+    return canvas
+end
+
+# ---- App entry ------------------------------------------------------------
+
+when app starts:
+    canvas = omnisys.graphics.canvas(800, 600)
+    canvas = omnisys.graphics.clear(canvas, "#ffffff")
+
+    shapes = []
+    shapes = add_shape(shapes, "rect", 10, 20, 100, 50, "#ff0000", "#0000ff", 0, 1, 2, 1, 0.5)
+    shapes = add_shape(shapes, "circle", 200, 150, 30, 30, "#00aa00", "#000000", 0, 1, 0, 0, 0)
+    shapes = add_shape(shapes, "line", 300, 250, 80, 20, "#000000", "#333333", 0, 1, 0, 0, 0)
+    shapes = add_shape(shapes, "polygon", 400, 300, 40, 40, "#ffff00", "#000000", 0, 1, 0, 0, 0)
+    shapes = add_shape(shapes, "rect", 500, 400, 60, 40, "#ff00ff", "#000000", 0, 1, 0, 0, 0)
+
+    n = omnisys.core.length(shapes)
+    show "shape_count={n}"
+
+    shapes = move_shape(shapes, 0, 10, 5)
+    s0 = omnisys.collections.list_get(shapes, 0)
+    mx = omnisys.collections.list_get(s0, 1)
+    my = omnisys.collections.list_get(s0, 2)
+    show "moved_rect={mx},{my}"
+
+    shapes = set_shape_color(shapes, 1, "#0000ff")
+    s1 = omnisys.collections.list_get(shapes, 1)
+    cf = omnisys.collections.list_get(s1, 5)
+    show "colored_circle={cf}"
+
+    sel = select_shape(shapes, 2)
+    show "selected_index={sel}"
+    badsel = select_shape(shapes, 99)
+    show "invalid_selection={badsel}"
+
+    shapes = apply_transform(shapes, 0, 5, 0 - 3, 0.5, 0.5)
+    s0b = omnisys.collections.list_get(shapes, 0)
+    tx = omnisys.collections.list_get(s0b, 1)
+    ty = omnisys.collections.list_get(s0b, 2)
+    tr = omnisys.collections.list_get(s0b, 7)
+    ts = omnisys.collections.list_get(s0b, 8)
+    show "transformed_rect={tx},{ty},{tr},{ts}"
+
+    shapes = delete_shape(shapes, 4)
+    n2 = omnisys.core.length(shapes)
+    show "count_after_delete={n2}"
+
+    shapes = tick(shapes, 0.1)
+    s0t1 = omnisys.collections.list_get(shapes, 0)
+    t1x = omnisys.collections.list_get(s0t1, 1)
+    t1y = omnisys.collections.list_get(s0t1, 2)
+    t1r = omnisys.collections.list_get(s0t1, 7)
+    show "tick1_rect={t1x},{t1y},{t1r}"
+
+    shapes = tick(shapes, 0.1)
+    s0t2 = omnisys.collections.list_get(shapes, 0)
+    t2x = omnisys.collections.list_get(s0t2, 1)
+    t2y = omnisys.collections.list_get(s0t2, 2)
+    t2r = omnisys.collections.list_get(s0t2, 7)
+    show "tick2_rect={t2x},{t2y},{t2r}"
+
+    shapes = tick(shapes, 0.1)
+    s0t3 = omnisys.collections.list_get(shapes, 0)
+    t3x = omnisys.collections.list_get(s0t3, 1)
+    t3y = omnisys.collections.list_get(s0t3, 2)
+    t3r = omnisys.collections.list_get(s0t3, 7)
+    show "tick3_rect={t3x},{t3y},{t3r}"
+
+    canvas = render_scene(shapes, canvas)
+    ops = omnisys.graphics.render(canvas)
+    opcount = omnisys.core.length(ops)
+    show "rendered_ops={opcount}"
+
+    js = omnisys.graphics.to_json(canvas)
+    cw = omnisys.collections.map_get(js, "width")
+    ch = omnisys.collections.map_get(js, "height")
+    show "canvas_width={cw}"
+    show "canvas_height={ch}"
+
+    show "done"
+end

@@ -1,0 +1,50 @@
+import OMNISYS.db
+
+last_name = "none"
+last_stock = 0
+
+fn is_bolt(row: ItemRow) -> Boolean:
+    return row.name is "bolt"
+end
+
+fn is_expensive(row: ItemRow) -> Boolean:
+    return row.price greater or equal 100
+end
+
+fn capture_bolt(row: ItemRow) -> Boolean:
+    if row.name is "bolt":
+        last_name = row.name
+        last_stock = row.stock
+        return true
+    end
+    return false
+end
+
+fn demo() -> None:
+    uses database
+    d = OMNISYS.db.create_db("inv")
+    t = OMNISYS.db.create_table(d, "items", ItemSchema(name="Text", price="Number", stock="Number"))
+    OMNISYS.db.insert(t, ItemRow(name="bolt", price=5, stock=12))
+    OMNISYS.db.insert(t, ItemRow(name="gadget", price=250, stock=3))
+    show OMNISYS.db.count(t, is_bolt)
+    rows = OMNISYS.db.select(t, is_expensive)
+    show rows
+    changed = OMNISYS.db.update(t, is_bolt, ItemPatch(stock=4))
+    show changed
+    capture = OMNISYS.db.select(t, capture_bolt)
+    show last_name
+    show last_stock
+    show OMNISYS.db.count(t, is_bolt)
+    removed = OMNISYS.db.delete(t, is_expensive)
+    show removed
+    show OMNISYS.db.table_size(t)
+end
+
+type ItemSchema = { name: Text, price: Text, stock: Text }
+type ItemRow = { name: Text, price: Number, stock: Number }
+type ItemPatch = { stock: Number }
+
+when app starts:
+    demo()
+    show "done"
+end

@@ -1,0 +1,100 @@
+import OMNISYS.async
+import OMNISYS.core
+import OMNISYS.platform
+import OMNISYS.collections
+
+# Named functions for task creation
+fn task_fn_hello() -> Text:
+    pure
+    return "hello from task"
+end
+
+fn task_fn_slow() -> Text:
+    uses process
+    omnisys.platform.sleep_ms(100)
+    return "done"
+end
+
+fn task_fn_a() -> Text:
+    pure
+    return "a"
+end
+
+fn task_fn_b() -> Text:
+    pure
+    return "b"
+end
+
+fn task_fn_c() -> Text:
+    pure
+    return "c"
+end
+
+fn task_fn_result(x: Number) -> Text:
+    pure
+    return "result-" + omnisys.core.type_of(x)
+end
+
+# Probe: Test channel communication pattern
+fn probe_channel_comm() -> Text:
+    uses process
+    ch = omnisys.async.channel(10)
+    
+    # Send some values
+    omnisys.async.channel_send(ch, "msg1")
+    omnisys.async.channel_send(ch, "msg2")
+    omnisys.async.channel_send(ch, "msg3")
+    
+    # Receive them
+    r1 = omnisys.async.channel_recv(ch)
+    r2 = omnisys.async.channel_recv(ch)
+    r3 = omnisys.async.channel_recv(ch)
+    
+    return "received: " + r1 + ", " + r2 + ", " + r3
+end
+
+# Probe: Test task with actual result
+fn probe_task_result() -> Text:
+    uses process
+    task = omnisys.async.task(task_fn_hello)
+    # The task is a Promise-like object
+    return "task created: " + omnisys.core.type_of(task)
+end
+
+# Probe: Test all combinator with results
+fn probe_all_results() -> Text:
+    uses process
+    t1 = omnisys.async.task(task_fn_a)
+    t2 = omnisys.async.task(task_fn_b)
+    t3 = omnisys.async.task(task_fn_c)
+    all_task = omnisys.async.all([t1, t2, t3])
+    return "all task created: " + omnisys.core.type_of(all_task)
+end
+
+# Probe: Test timeout behavior
+fn probe_timeout_behavior() -> Text:
+    uses process
+    slow_task = omnisys.async.task(task_fn_slow)
+    timed = omnisys.async.timeout(slow_task, 50)
+    return "timeout task created: " + omnisys.core.type_of(timed)
+end
+
+when app starts:
+    show "=== Probe: Channel Communication ==="
+    result1 = probe_channel_comm()
+    show result1
+    
+    show "=== Probe: Task Result ==="
+    result2 = probe_task_result()
+    show result2
+    
+    show "=== Probe: All Results ==="
+    result3 = probe_all_results()
+    show result3
+    
+    show "=== Probe: Timeout Behavior ==="
+    result4 = probe_timeout_behavior()
+    show result4
+    
+    show "All probes completed"
+end

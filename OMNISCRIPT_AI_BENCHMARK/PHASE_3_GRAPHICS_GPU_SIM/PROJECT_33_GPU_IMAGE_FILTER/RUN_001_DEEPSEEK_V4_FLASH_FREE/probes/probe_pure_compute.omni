@@ -1,0 +1,16 @@
+import OMNISYS.gpu
+import OMNISYS.collections
+
+fn bad_kernel(i: Number, input: List) -> Number:
+    pure
+    return omnisys.collections.list_get(input, 0)
+end
+
+fn pure_calls_gpu(data: List) -> List:
+    pure
+    return omnisys.gpu.compute(bad_kernel, data, 1)
+end
+
+when app starts:
+    show "hello"
+end

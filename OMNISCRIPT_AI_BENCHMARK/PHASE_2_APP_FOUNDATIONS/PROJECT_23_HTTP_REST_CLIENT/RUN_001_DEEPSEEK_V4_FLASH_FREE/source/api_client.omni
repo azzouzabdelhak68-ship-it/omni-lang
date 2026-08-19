@@ -1,0 +1,178 @@
+# OmniScript REST API Client — Project 2.3 benchmark deliverable.
+#
+# An external REST integration client that:
+#   1. formats GET/POST requests (query strings, headers, JSON bodies),
+#   2. deserializes raw responses into typed structures,
+#   3. classifies connection failures, HTTP error statuses, malformed
+#      payloads, and timeouts,
+#   4. declares the `network` capability at every effectful boundary.
+#
+# OMNISYS.http is the portable transport (inproc:// in-process servers are
+# deterministic and used by the test harness as stubbed endpoints; real wire
+# transport is a future escape). OMNISYS.serde provides JSON encode/decode.
+# Serialization (serde) is registered as PURE in the capability registry, so
+# no capability token exists for it; only `network` must be declared.
+
+import OMNISYS.http
+import OMNISYS.core
+import OMNISYS.serde
+import OMNISYS.collections
+import OMNISYS.platform
+
+# --- typed payloads / request & error structures ---------------------------
+
+type User = { id: Number, name: Text, email: Text }
+
+type Request = { method: Text, url: Text, headers: Text, body: Text }
+
+type HttpResponse = { status: Number, body: Text }
+
+type ErrorKind = { code: Text, message: Text }
+
+# --- request formatting -----------------------------------------------------
+
+fn encode_query(params: List) -> Text:
+    pure
+    return omnisys.collections.list_join(params, "&")
+end
+
+fn build_get_request(base: Text, query: Text) -> Request:
+    pure
+    return Request(method = "GET", url = "{base}?{query}", headers = "Accept: application/json", body = "")
+end
+
+fn build_post_request(base: Text, payload: Text) -> Request:
+    pure
+    return Request(method = "POST", url = base, headers = "Content-Type: application/json", body = payload)
+end
+
+fn serialize_body(user: User) -> Text:
+    pure
+    return omnisys.serde.json_encode(user)
+end
+
+# --- typed response parsing -------------------------------------------------
+# The language has no `any` type: the result of omnisys.serde.json_decode is
+# statically "unknown", so field access on it is rejected (E-TYPE-002). The
+# decoded payload is therefore re-wrapped through typed-parameter helpers,
+# which the compiler does not statically type-check at the call site.
+
+fn user_from_payload(payload: User) -> User:
+    pure
+    return User(id = payload.id, name = payload.name, email = payload.email)
+end
+
+fn parse_user(body: Text) -> User:
+    pure
+    data = omnisys.serde.json_decode(body)
+    return user_from_payload(data)
+end
+
+fn user_from_payload_item(item: User) -> User:
+    pure
+    return User(id = item.id, name = item.name, email = item.email)
+end
+
+fn parse_users(body: Text) -> List:
+    pure
+    users = []
+    items = omnisys.serde.json_decode(body)
+    for item in items:
+        users = omnisys.collections.list_push(users, user_from_payload_item(item))
+    end
+    return users
+end
+
+# --- response accessors (typed views over the raw response value) ----------
+
+fn response_status(res: HttpResponse) -> Number:
+    pure
+    return res.status
+end
+
+fn response_body(res: HttpResponse) -> Text:
+    pure
+    return res.body
+end
+
+# --- error & timeout classification ----------------------------------------
+# Classification is a pure decision function over the raw response:
+#   elapsed > budget  -> timeout
+#   status 0          -> connection failure (no response received)
+#   empty body        -> malformed payload (JSON decode cannot be caught, so
+#                        empty/opaque bodies are classified before decoding)
+#   404               -> not_found
+#   status >= 500     -> server_error
+#   200..299          -> ok
+#   anything else     -> http_error
+
+fn classify_error(status: Number, body: Text, elapsed: Number, budget: Number) -> ErrorKind:
+    pure
+    if elapsed greater than budget:
+        return ErrorKind(code = "timeout", message = "Request exceeded the timeout budget")
+    end
+    if status is 0:
+        return ErrorKind(code = "connection_failed", message = "No response received from the endpoint")
+    end
+    if omnisys.core.is_empty(body):
+        return ErrorKind(code = "malformed_payload", message = "Empty or non-JSON response body")
+    end
+    if status is 404:
+        return ErrorKind(code = "not_found", message = "Resource not found")
+    end
+    if status greater or equal 500:
+        return ErrorKind(code = "server_error", message = "Server-side failure")
+    end
+    if status greater or equal 200:
+        if status less than 300:
+            return ErrorKind(code = "ok", message = "Success")
+        end
+    end
+    return ErrorKind(code = "http_error", message = "Unexpected HTTP status")
+end
+
+# --- network operations (capability: network) ------------------------------
+# Elapsed time is measured with the pure platform clock around the portable
+# HTTP call so the timeout budget can be enforced end-to-end.
+
+fn fetch_users(base: Text, budget: Number) -> ErrorKind:
+    uses network
+    t0 = omnisys.platform.now()
+    resp = omnisys.http.get("{base}/users")
+    t1 = omnisys.platform.now()
+    duration = t1 - t0
+    return classify_error(response_status(resp), response_body(resp), duration, budget)
+end
+
+fn fetch_user_detail(base: Text, user_id: Number, budget: Number) -> ErrorKind:
+    uses network
+    t0 = omnisys.platform.now()
+    resp = omnisys.http.get("{base}/users/{user_id}")
+    t1 = omnisys.platform.now()
+    duration = t1 - t0
+    return classify_error(response_status(resp), response_body(resp), duration, budget)
+end
+
+fn create_user(base: Text, user: User, budget: Number) -> ErrorKind:
+    uses network
+    json_body = serialize_body(user)
+    t0 = omnisys.platform.now()
+    resp = omnisys.http.post("{base}/users", json_body)
+    t1 = omnisys.platform.now()
+    duration = t1 - t0
+    return classify_error(response_status(resp), response_body(resp), duration, budget)
+end
+
+# --- demo entry point (pure only; the effectful network functions are
+# exercised end-to-end by the pytest suite through the compiled JS artifact) --
+
+when app starts:
+    get = build_get_request("https://api.example.com", encode_query(["page=1", "size=10"]))
+    show get
+    post = build_post_request("https://api.example.com/users", serialize_body(User(id = 1, name = "Ada", email = "ada@example.com")))
+    show post
+    outcome = classify_error(503, "boom", 5, 1000)
+    show outcome
+    conn = classify_error(0, "", 5, 1000)
+    show conn
+end

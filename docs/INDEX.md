@@ -21,6 +21,30 @@ Generated navigation index for everything under `docs/`.
 
 - [architecture/README.md](architecture/README.md) - directory index
 
+### Architecture Documents
+
+- [OMNISYS Master Architecture](architecture/00-master-architecture.md)
+- [OMNISYS Module Tree](architecture/01-module-tree.md)
+- [OMNISYS Capability Matrix](architecture/02-capability-matrix.md)
+- [OMNISYS Backend Matrix](architecture/03-backend-matrix.md)
+- [OMNISYS API Design Principles](architecture/04-api-design-principles.md)
+- [OMNISYS.ui — UI Architecture](architecture/05-ui.md)
+- [OMNISYS.db — Database Architecture](architecture/06-database.md)
+- [OMNISYS Graphics / GPU / Scene Architecture](architecture/07-graphics-gpu-scene.md)
+- [OMNISYS Networking Architecture](architecture/08-networking.md)
+- [OMNISYS Media & Platform Architecture](architecture/09-media-platform.md)
+- [OMNISYS Simulation / ECS Architecture](architecture/10-sim.md)
+- [OMNISYS Security Architecture](architecture/11-security.md)
+- [AI-Native Tooling Architecture](architecture/12-ai-tooling.md)
+- [OMNISYS Package / Module System](architecture/13-package-system.md)
+- [`import OMNISYS` Behavior](architecture/14-import-behavior.md)
+- [OMNISYS Performance Model](architecture/15-performance.md)
+- [OMNISYS Cross-Backend Conformance Model](architecture/16-conformance.md)
+- [OMNISYS Escape-Hatch / Native Interop Model](architecture/17-escape-hatch.md)
+- [OMNISYS Development Roadmap](architecture/18-roadmap.md)
+- [OMNISYS Testing & Quality Gates](architecture/19-quality-gates.md)
+- [OMNISYS Example Applications](architecture/20-example-applications.md)
+
 
 ## Decisions
 
@@ -38,7 +62,7 @@ Generated navigation index for everything under `docs/`.
 - [db](omnisys/db/README.md) - Data platform: SQL execution, query builder, migrations, transactions,
 - [graphics](omnisys/graphics/README.md) - Portable rendering abstraction over Vulkan, Metal, DirectX, and WebGPU.
 - [gpu](omnisys/gpu/README.md) - General-purpose GPU compute: CUDA, Metal, Vulkan, WebGPU. Portable GPU
-- [net](omnisys/net/README.md) - Low-level networking: TCP, UDP, WebSockets; client/server and middleware.
+- [net](omnisys/net/README.md) - In-process, deterministic request/response model for testing and simulation. Not a real socket layer.
 - [http](omnisys/http/README.md) - High-level HTTP client and server: routing, middleware, request/response
 - [audio](omnisys/audio/README.md) - Audio I/O, synthesis, and processing: capture, playback, synthesis graphs,
 - [video](omnisys/video/README.md) - Video encoding, decoding, and streaming, including camera buffer handling.

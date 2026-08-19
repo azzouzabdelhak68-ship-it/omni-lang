@@ -1,0 +1,160 @@
+import OMNISYS.collections
+
+fn advance_angle(angle: Number, speed: Number, dt: Number) -> Number:
+    pure
+    two_pi = 6.283185307179586
+    next = angle + speed * dt
+    if next greater or equal two_pi:
+        next = next - two_pi
+    end
+    if next less than 0:
+        next = next + two_pi
+    end
+    return next
+end
+
+fn sin_approx(x: Number) -> Number:
+    pure
+    x2 = x * x
+    x3 = x2 * x
+    x5 = x3 * x2
+    x7 = x5 * x2
+    x9 = x7 * x2
+    x11 = x9 * x2
+    s = x - x3 / 6.0 + x5 / 120.0 - x7 / 5040.0 + x9 / 362880.0 - x11 / 39916800.0
+    return s
+end
+
+fn cos_approx(x: Number) -> Number:
+    pure
+    x2 = x * x
+    x4 = x2 * x2
+    x6 = x4 * x2
+    x8 = x4 * x4
+    x10 = x6 * x4
+    x12 = x6 * x6
+    c = 1.0 - x2 / 2.0 + x4 / 24.0 - x6 / 720.0 + x8 / 40320.0 - x10 / 3628800.0 + x12 / 479001600.0
+    return c
+end
+
+fn orbital_position(radius: Number, angle: Number) -> List:
+    pure
+    return [radius * cos_approx(angle), 0, radius * sin_approx(angle)]
+end
+
+fn moon_position(planet_angle: Number, planet_radius: Number, moon_angle: Number, moon_radius: Number) -> List:
+    pure
+    p = orbital_position(planet_radius, planet_angle)
+    px = omnisys.collections.list_get(p, 0)
+    pz = omnisys.collections.list_get(p, 2)
+    mx = moon_radius * cos_approx(moon_angle)
+    mz = moon_radius * sin_approx(moon_angle)
+    return [px + mx, 0, pz + mz]
+end
+
+fn camera_orbit(angle: Number) -> List:
+    pure
+    dist = 10.0
+    return [dist * cos_approx(angle), 4.0, dist * sin_approx(angle)]
+end
+
+fn highlight_body(bodies: List, name: Text) -> Number:
+    pure
+    return omnisys.collections.list_index_of(bodies, name)
+end
+
+fn color_of(name: Text) -> Text:
+    pure
+    if name is "sun":
+        return "#fbbf24"
+    end
+    if name is "mercury":
+        return "#9ca3af"
+    end
+    if name is "venus":
+        return "#eab308"
+    end
+    if name is "earth":
+        return "#3b82f6"
+    end
+    if name is "moon":
+        return "#e2e8f0"
+    end
+    return "#ef4444"
+end
+
+when app starts:
+    bodies = ["sun", "mercury", "venus", "earth", "moon", "mars"]
+    comma = ","
+    star_color = "#fbbf24"
+    mercury_color = "#9ca3af"
+    venus_color = "#eab308"
+    earth_color = "#3b82f6"
+    moon_color = "#e2e8f0"
+    mars_color = "#ef4444"
+    show "scene bodies={omnisys.collections.list_join(bodies, comma)}"
+    show "count bodies=6 planets=4 moon=1"
+    sun_c = color_of("sun")
+    mercury_c = color_of("mercury")
+    venus_c = color_of("venus")
+    earth_c = color_of("earth")
+    moon_c = color_of("moon")
+    mars_c = color_of("mars")
+    show "colors sun={sun_c} mercury={mercury_c} venus={venus_c} earth={earth_c} moon={moon_c} mars={mars_c}"
+    dt = 0.25
+    a_mercury = 0.0
+    a_venus = 0.3
+    a_earth = 0.6
+    a_mars = 0.9
+    a_moon = 0.1
+    a_camera = 0.0
+    for tick in [0.0, 1.0, 2.0, 3.0, 4.0]:
+        a_mercury = advance_angle(a_mercury, 1.2, dt)
+        a_venus = advance_angle(a_venus, 0.9, dt)
+        a_earth = advance_angle(a_earth, 0.6, dt)
+        a_mars = advance_angle(a_mars, 0.4, dt)
+        a_moon = advance_angle(a_moon, 2.0, dt)
+        a_camera = advance_angle(a_camera, 0.8, dt)
+        pm = orbital_position(1.5, a_mercury)
+        pv = orbital_position(2.2, a_venus)
+        pe = orbital_position(3.0, a_earth)
+        pmr = orbital_position(3.9, a_mars)
+        pmx = omnisys.collections.list_get(pm, 0)
+        pmz = omnisys.collections.list_get(pm, 2)
+        pvx = omnisys.collections.list_get(pv, 0)
+        pvz = omnisys.collections.list_get(pv, 2)
+        pex = omnisys.collections.list_get(pe, 0)
+        pez = omnisys.collections.list_get(pe, 2)
+        prx = omnisys.collections.list_get(pmr, 0)
+        prz = omnisys.collections.list_get(pmr, 2)
+        moon = moon_position(a_earth, 3.0, a_moon, 0.6)
+        mmx = omnisys.collections.list_get(moon, 0)
+        mmz = omnisys.collections.list_get(moon, 2)
+        cam = camera_orbit(a_camera)
+        cmx = omnisys.collections.list_get(cam, 0)
+        cmz = omnisys.collections.list_get(cam, 2)
+        show "tick={tick} mercury={pmx},{pmz}"
+        show "tick={tick} venus={pvx},{pvz}"
+        show "tick={tick} earth={pex},{pez}"
+        show "tick={tick} mars={prx},{prz}"
+        show "tick={tick} moon={mmx},{mmz}"
+        show "tick={tick} camera={cmx},{cmz}"
+    end
+    hi_earth = highlight_body(bodies, "earth")
+    hi_pluto = highlight_body(bodies, "pluto")
+    show "highlight earth idx={hi_earth}"
+    show "highlight pluto idx={hi_pluto}"
+end
+
+scene:
+    sphere size="2" color="{star_color}" pos="0,0,0"
+    sphere size="0.5" color="{mercury_color}" pos="1.5,0,0"
+    sphere size="0.8" color="{venus_color}" pos="2.2,0,0.3"
+    sphere size="0.9" color="{earth_color}" pos="3.0,0,0.6"
+    sphere size="0.4" color="{moon_color}" pos="3.6,0,0.7"
+    sphere size="0.7" color="{mars_color}" pos="3.9,0,0.9"
+    box size="0.2" color="#64748b" pos="0,0,-4"
+    plane size="14" color="#1e293b"
+    light type="directional" intensity="2" color="#ffffff"
+    camera pos="0,8,20"
+end

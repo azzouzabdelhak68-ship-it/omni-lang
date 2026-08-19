@@ -64,7 +64,10 @@ ignore = []
 fixable = ["ALL"]
 unfixable = []
 extend-select = ["TID252", "ARG001", "ARG002"]
-per-file-ignores = { "tests/*" = ["S101", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"] }
+per-file-ignores = { "tests/*" = ["S101", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "D400", "D401", "D415", "PLR2004", "T201", "PLW1510"], "packages/*/tests/*" = ["S101", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "PLR2004"] }
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
 
 [tool.ruff.format]
 quote-style = "single"
@@ -109,8 +112,60 @@ average = "B"
 exclude = "tests/*"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["omni_compiler*"]
+where = [
+    "packages/omnisys-core/src",
+    "packages/omnisys-collections/src",
+    "packages/omnisys-async/src",
+    "packages/omnisys-fs/src",
+    "packages/omnisys-serde/src",
+    "packages/omnisys-error/src",
+    "packages/omnisys-test/src",
+    "packages/omnisys-ui/src",
+    "packages/omnisys-db/src",
+    "packages/omnisys-net/src",
+    "packages/omnisys-http/src",
+    "packages/omnisys-graphics/src",
+    "packages/omnisys-gpu/src",
+    "packages/omnisys-scene/src",
+    "packages/omnisys-sim/src",
+    "packages/omnisys-audio/src",
+    "packages/omnisys-video/src",
+    "packages/omnisys-platform/src",
+    "packages/omnisys-crypto/src",
+    "packages/omnisys-auth/src",
+    "packages/omnisys-observability/src",
+    "packages/omnisys-tool/src",
+    "packages/omnisys-ai/src",
+    "packages/omnisys-pkg/src",
+    ".",
+]
+include = [
+    "omni_compiler*",
+    "omnisys_core*",
+    "omnisys_collections*",
+    "omnisys_async*",
+    "omnisys_fs*",
+    "omnisys_serde*",
+    "omnisys_error*",
+    "omnisys_test*",
+    "omnisys_ui*",
+    "omnisys_db*",
+    "omnisys_net*",
+    "omnisys_http*",
+    "omnisys_graphics*",
+    "omnisys_gpu*",
+    "omnisys_scene*",
+    "omnisys_sim*",
+    "omnisys_audio*",
+    "omnisys_video*",
+    "omnisys_platform*",
+    "omnisys_crypto*",
+    "omnisys_auth*",
+    "omnisys_observability*",
+    "omnisys_tool*",
+    "omnisys_ai*",
+    "omnisys_pkg*",
+]
 
 [tool.setuptools.package-dir]
 "" = "."

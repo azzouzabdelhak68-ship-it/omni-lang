@@ -1,0 +1,50 @@
+fn motion_system() -> None:
+    reads sim
+    writes sim
+    x1 = x1 + vx1 * dt
+    y1 = y1 + vy1 * dt
+    x2 = x2 + vx2 * dt
+    y2 = y2 + vy2 * dt
+    x3 = x3 + vx3 * dt
+    y3 = y3 + vy3 * dt
+    show "tick:{x1},{y1},{x2},{y2},{x3},{y3}"
+end
+
+when app starts:
+    dt = 0.25
+    x1 = 0.0
+    y1 = 0.0
+    vx1 = 1.0
+    vy1 = 0.5
+    x2 = 0 - 2.0
+    y2 = 1.0
+    vx2 = 0.25
+    vy2 = 0.75
+    x3 = 2.0
+    y3 = 0 - 1.0
+    vx3 = 0 - 0.5
+    vy3 = 1.25
+    sim.entity("particle1", ["position", "velocity", "render"])
+    sim.entity("particle2", ["position", "velocity", "render"])
+    sim.entity("particle3", ["position", "velocity", "render"])
+    sim.system("motion", motion_system, ["position", "velocity"])
+    sim.run(3)
+    show "final:p1:{x1},{y1}"
+    show "final:p2:{x2},{y2}"
+    show "final:p3:{x3},{y3}"
+    entities = sim.query("render")
+    n = 0
+    for e in entities:
+        n = n + 1
+    end
+    show "scene-bodies:{n}"
+end
+
+scene:
+    plane size="10" color="#334155"
+    sphere size="0.5" color="#e11d48" pos="0,0,0"
+    sphere size="0.5" color="#22c55e" pos="-2,1,0"
+    sphere size="0.5" color="#3b82f6" pos="2,-1,0"
+    light type="directional" intensity="2"
+    camera pos="0,0,6"
+end

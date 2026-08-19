@@ -25,6 +25,12 @@ MODULE_ORDER = [
 ]
 
 
+def _title_from_doc(doc: Path) -> str:
+    text = doc.read_text(encoding="utf-8")
+    match = re.search(r"^# (.+)$", text, re.M)
+    return match.group(1) if match else doc.stem.replace("-", " ").title()
+
+
 def _purpose_summary(module_file: Path) -> str:
     text = module_file.read_text(encoding="utf-8")
     match = re.search(r"## Purpose\s*\n+(.*?)(?=\n## |\Z)", text, re.S)
@@ -64,6 +70,18 @@ def generate() -> str:
             rel = readme.relative_to(DOCS).as_posix()
             lines.append(f"- [{folder}/README.md]({rel}) - directory index")
             lines.append("")
+        if folder == "architecture":
+            architecture_docs = sorted(
+                p for p in (DOCS / "architecture").glob("*.md") if p.name != "README.md"
+            )
+            if architecture_docs:
+                lines.append("### Architecture Documents")
+                lines.append("")
+                for doc in architecture_docs:
+                    rel = doc.relative_to(DOCS).as_posix()
+                    title = _title_from_doc(doc)
+                    lines.append(f"- [{title}]({rel})")
+                lines.append("")
 
     lines.append("### Module READMEs")
     lines.append("")

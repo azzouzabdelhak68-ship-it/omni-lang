@@ -1,0 +1,63 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+fn make(kind: Text) -> List:
+    return [kind, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0.5]
+end
+
+fn step(shapes: List, dt: Number) -> List:
+    i = 0
+    for s in shapes:
+        vx = omnisys.collections.list_get(s, 9)
+        vy = omnisys.collections.list_get(s, 10)
+        vr = omnisys.collections.list_get(s, 11)
+        nx = omnisys.collections.list_get(s, 1) + vx * dt
+        ny = omnisys.collections.list_get(s, 2) + vy * dt
+        nrot = omnisys.collections.list_get(s, 7) + vr * dt
+        omnisys.collections.list_set(s, 1, nx)
+        omnisys.collections.list_set(s, 2, ny)
+        omnisys.collections.list_set(s, 7, nrot)
+        i = i + 1
+    end
+    return shapes
+end
+
+fn classify(shapes: List, index: Number) -> Text:
+    s = omnisys.collections.list_get(shapes, index)
+    kind = omnisys.collections.list_get(s, 0)
+    if kind is "rect":
+        return "rect-hit"
+    else:
+        if kind is "circle":
+            return "circle-hit"
+        end
+    end
+    return "other"
+end
+
+fn shape_count(shapes: List) -> Number:
+    return omnisys.core.length(shapes)
+end
+
+when app starts:
+    shapes = []
+    shapes = omnisys.collections.list_push(shapes, make("rect"))
+    shapes = omnisys.collections.list_push(shapes, make("circle"))
+    shapes = omnisys.collections.list_push(shapes, make("line"))
+    shapes = step(shapes, 0.1)
+    shapes = step(shapes, 0.1)
+    s0 = omnisys.collections.list_get(shapes, 0)
+    show "after2={s0}"
+    c0 = classify(shapes, 0)
+    c1 = classify(shapes, 1)
+    c2 = classify(shapes, 2)
+    show "classify0={c0}"
+    show "classify1={c1}"
+    show "classify2={c2}"
+    n = shape_count(shapes)
+    show "count={n}"
+    if n is 3:
+        show "nested-if-ok"
+    end
+    show "done"
+end

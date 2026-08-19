@@ -1,0 +1,13 @@
+when app starts:
+    x1 = 0.0
+    vx1 = 1.0
+    dt = 0.1
+    sim.run(1)
+    show x1
+end
+
+fn motion_system() -> None:
+    reads sim
+    writes sim
+    x1 = x1 + vx1 * dt
+end

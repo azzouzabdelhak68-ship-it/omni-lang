@@ -1,0 +1,6 @@
+import OMNISYS.http
+
+fn fetch() -> Number:
+    res = omnisys.http.get("inproc://test/x")
+    return 0
+end

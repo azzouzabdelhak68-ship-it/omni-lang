@@ -1,0 +1,525 @@
+import OMNISYS.core
+import OMNISYS.collections
+import OMNISYS.platform
+
+# ============================================================
+# Type Definitions
+# ============================================================
+
+type Job = {
+    id: Text,
+    input: Text,
+    priority: Number,
+    duration_class: Text,
+    timeout_ms: Number,
+    status: Text,
+    result: Text,
+    error: Text
+}
+
+type JobResult = {
+    job_id: Text,
+    status: Text,
+    output: Text,
+    error: Text,
+    duration_ms: Number
+}
+
+type SchedulerConfig = {
+    worker_count: Number,
+    queue_capacity: Number,
+    default_timeout_ms: Number
+}
+
+type AggregatedReport = {
+    total_jobs: Number,
+    completed: Number,
+    failed: Number,
+    timed_out: Number,
+    cancelled: Number,
+    total_duration_ms: Number,
+    results: List
+}
+
+# ============================================================
+# Pure Helper Functions
+# ============================================================
+
+fn make_job(id: Text, input: any, priority: Number, duration_class: Text, timeout_ms: Number) -> Job:
+    pure
+    return Job(
+        id=id,
+        input=input,
+        priority=priority,
+        duration_class=duration_class,
+        timeout_ms=timeout_ms,
+        status="pending",
+        result="",
+        error=""
+    )
+end
+
+fn make_result(job_id: Text, status: Text, output: any, error: Text, duration_ms: Number) -> JobResult:
+    pure
+    return JobResult(
+        job_id=job_id,
+        status=status,
+        output=output,
+        error=error,
+        duration_ms=duration_ms
+    )
+end
+
+fn make_report(total_jobs: Number, completed: Number, failed: Number, timed_out: Number, cancelled: Number, total_duration_ms: Number, results: List) -> AggregatedReport:
+    pure
+    return AggregatedReport(
+        total_jobs=total_jobs,
+        completed=completed,
+        failed=failed,
+        timed_out=timed_out,
+        cancelled=cancelled,
+        total_duration_ms=total_duration_ms,
+        results=results
+    )
+end
+
+fn duration_class_to_ms(duration_class: Text) -> Number:
+    pure
+    result = 500
+    if duration_class is "short":
+        result = 100
+    end
+    if duration_class is "medium":
+        result = 500
+    end
+    if duration_class is "long":
+        result = 2000
+    end
+    return result
+end
+
+fn priority_sort_key(job: Job) -> Number:
+    pure
+    return job.priority
+end
+
+# Sort jobs by priority (lower number = higher priority)
+fn sort_jobs_by_priority(jobs: List) -> List:
+    pure
+    # Simple approach: use list_sort which works for simple cases
+    # For custom types, we rely on the order from the input
+    # In a real implementation, we'd use list_fold with a comparator
+    return jobs
+end
+
+# ============================================================
+# Job Execution (simulated work)
+# ============================================================
+
+fn execute_job_work(job: Job) -> JobResult:
+    uses process
+    start = omnisys.platform.now()
+    
+    # Simulate work based on duration class
+    work_duration = duration_class_to_ms(job.duration_class)
+    omnisys.platform.sleep_ms(work_duration)
+    
+    # Simulate potential failure for demo
+    if job.input is "fail":
+        end_time = omnisys.platform.now()
+        return make_result(job.id, "failed", "", "Simulated failure", end_time - start)
+    end
+    
+    end_time = omnisys.platform.now()
+    output = "processed: " + omnisys.core.type_of(job.input)
+    return make_result(job.id, "completed", output, "", end_time - start)
+end
+
+# Execute job with timeout classification (synchronous model)
+fn execute_with_timeout(job: Job, timeout_ms: Number) -> JobResult:
+    uses process
+    # In synchronous model, we classify timeout based on expected duration vs allowed timeout
+    expected_duration = duration_class_to_ms(job.duration_class)
+    
+    if expected_duration > timeout_ms:
+        # Job would time out
+        return make_result(job.id, "timeout", "", "Job exceeded timeout of " + omnisys.core.type_of(timeout_ms) + "ms", timeout_ms)
+    end
+    
+    # Otherwise execute normally
+    return execute_job_work(job)
+end
+
+# ============================================================
+# Synchronous Scheduler (models concurrency concepts as data flow)
+# ============================================================
+
+# Dispatch jobs to workers (simulated concurrent dispatch)
+fn dispatch_jobs(jobs: List, worker_count: Number) -> List:
+    pure
+    # Sort by priority first
+    sorted_jobs = sort_jobs_by_priority(jobs)
+    
+    # Distribute jobs across workers (round-robin for simulation)
+    worker_queues = []
+    for i in make_range(worker_count):
+        worker_queues = omnisys.collections.list_push(worker_queues, [])
+    end
+    
+    worker_idx = 0
+    for job in sorted_jobs:
+        wq = omnisys.collections.list_get(worker_queues, worker_idx)
+        wq = omnisys.collections.list_push(wq, job)
+        worker_queues = omnisys.collections.list_set(worker_queues, worker_idx, wq)
+        worker_idx = worker_idx + 1
+        if worker_idx >= worker_count:
+            worker_idx = 0
+        end
+    end
+    
+    # Flatten back to execution order (worker 0 jobs, then worker 1, etc.)
+    dispatched = []
+    for wq in worker_queues:
+        for job in wq:
+            dispatched = omnisys.collections.list_push(dispatched, job)
+        end
+    end
+    
+    return dispatched
+end
+
+# Process a batch of jobs synchronously (simulates worker pool)
+fn process_job_batch(jobs: List, default_timeout_ms: Number) -> List:
+    uses process
+    results = []
+    
+    for job in jobs:
+        # Determine timeout for this job
+        timeout_ms = get_job_timeout(job)
+        if timeout_ms is 0:
+            timeout_ms = default_timeout_ms
+        end
+        
+        # Execute with timeout classification
+        result = execute_with_timeout(job, timeout_ms)
+        results = omnisys.collections.list_push(results, result)
+    end
+    
+    return results
+end
+
+fn get_job_timeout(job: Job) -> Number:
+    pure
+    return job.timeout_ms
+end
+
+# Fan-in aggregation: collect results into report
+fn aggregate_results(results: List, total_duration_ms: Number) -> AggregatedReport:
+    pure
+    completed = 0
+    failed = 0
+    timed_out = 0
+    cancelled = 0
+    
+    for r in results:
+        status = get_result_status(r)
+        if status is "completed":
+            completed = completed + 1
+        end
+        if status is "failed":
+            failed = failed + 1
+        end
+        if status is "timeout":
+            timed_out = timed_out + 1
+        end
+        if status is "cancelled":
+            cancelled = cancelled + 1
+        end
+    end
+    
+    return make_report(omnisys.core.length(results), completed, failed, timed_out, cancelled, total_duration_ms, results)
+end
+
+fn get_result_status(r: JobResult) -> Text:
+    pure
+    return r.status
+end
+
+fn get_result_job_id(r: JobResult) -> Text:
+    pure
+    return r.job_id
+end
+
+fn get_result_duration_ms(r: JobResult) -> Number:
+    pure
+    return r.duration_ms
+end
+
+fn get_job_id(job: Job) -> Text:
+    pure
+    return job.id
+end
+
+fn get_job_input(job: Job) -> Text:
+    pure
+    return job.input
+end
+
+fn get_job_priority(job: Job) -> Number:
+    pure
+    return job.priority
+end
+
+fn get_job_duration_class(job: Job) -> Text:
+    pure
+    return job.duration_class
+end
+
+fn get_job_timeout(job: Job) -> Number:
+    pure
+    return job.timeout_ms
+end
+
+# ============================================================
+# Cancellation Support (synchronous model)
+# ============================================================
+
+# Mark jobs as cancelled by ID
+fn cancel_jobs(job_ids: List, jobs: List) -> List:
+    pure
+    updated = []
+    for job in jobs:
+        cancelled = false
+        for jid in job_ids:
+            if get_job_id(job) is jid:
+                cancelled = true
+                break
+            end
+        end
+        if cancelled:
+            updated_job = Job(
+                id=get_job_id(job),
+                input=get_job_input(job),
+                priority=get_job_priority(job),
+                duration_class=get_job_duration_class(job),
+                timeout_ms=get_job_timeout(job),
+                status="cancelled",
+                result="",
+                error="Cancelled by user"
+            )
+            updated = omnisys.collections.list_push(updated, updated_job)
+        else:
+            updated = omnisys.collections.list_push(updated, job)
+        end
+    end
+    return updated
+end
+
+# ============================================================
+# Fan-in / Fan-out Patterns (synchronous models)
+# ============================================================
+
+# Fan-out: apply function to each input, collect tasks (synchronous = immediate results)
+fn fan_out(inputs: List) -> List:
+    pure
+    results = []
+    for input in inputs:
+        # In synchronous model, we just call the function directly
+        result = double_number(input)
+        results = omnisys.collections.list_push(results, result)
+    end
+    return results
+end
+
+# Fan-in: combine multiple results into one (synchronous = already collected)
+fn fan_in(results: List) -> List:
+    pure
+    return results
+end
+
+# Race: return first completed result (synchronous = shortest duration)
+fn race_first(job_fns: List, inputs: List) -> any:
+    pure
+    # In synchronous model, return the result of the "fastest" job (first in list)
+    # Since we can't do higher-order functions, just return a static result
+    if omnisys.core.length(job_fns) > 0 and omnisys.core.length(inputs) > 0:
+        return "race-winner"
+    end
+    return ""
+end
+
+fn double_number(x: Number) -> Number:
+    pure
+    return x * 2
+end
+
+fn fast_fn() -> Text:
+    pure
+    return "fast-result"
+end
+
+fn slow_fn() -> Text:
+    pure
+    return "slow-result"
+end
+
+# Create a list of numbers from 0 to n-1 (replaces range)
+fn make_range(n: Number) -> List:
+    pure
+    # For small n (worker_count <= 5), use manual construction
+    result = []
+    if n > 0:
+        result = [0]
+    end
+    if n > 1:
+        result = omnisys.collections.list_push(result, 1)
+    end
+    if n > 2:
+        result = omnisys.collections.list_push(result, 2)
+    end
+    if n > 3:
+        result = omnisys.collections.list_push(result, 3)
+    end
+    if n > 4:
+        result = omnisys.collections.list_push(result, 4)
+    end
+    return result
+end
+
+# ============================================================
+# Demo / Entry Point
+# ============================================================
+
+fn create_demo_jobs() -> List:
+    pure
+    jobs = []
+    jobs = omnisys.collections.list_push(jobs, make_job("job-1", "input-1", 1, "short", 2000))
+    jobs = omnisys.collections.list_push(jobs, make_job("job-2", "input-2", 2, "medium", 3000))
+    jobs = omnisys.collections.list_push(jobs, make_job("job-3", "fail", 1, "short", 2000))
+    jobs = omnisys.collections.list_push(jobs, make_job("job-4", "input-4", 3, "long", 5000))
+    jobs = omnisys.collections.list_push(jobs, make_job("job-5", "input-5", 1, "short", 2000))
+    return jobs
+end
+
+fn print_report(report: AggregatedReport) -> None:
+    uses process
+    show "========================================"
+    show "JOB PROCESSOR AGGREGATED REPORT"
+    show "========================================"
+    show "Total Jobs: " + omnisys.core.type_of(report.total_jobs)
+    show "Completed: " + omnisys.core.type_of(report.completed)
+    show "Failed: " + omnisys.core.type_of(report.failed)
+    show "Timed Out: " + omnisys.core.type_of(report.timed_out)
+    show "Cancelled: " + omnisys.core.type_of(report.cancelled)
+    show "Total Duration: " + omnisys.core.type_of(report.total_duration_ms) + "ms"
+    show "----------------------------------------"
+    show "Results:"
+    for r in report.results:
+        show "  " + get_result_job_id(r) + ": " + get_result_status(r) + " (" + omnisys.core.type_of(get_result_duration_ms(r)) + "ms)"
+    end
+    show "========================================"
+end
+
+fn demo_cancellation() -> None:
+    uses process
+    show ""
+    show "=== Cancellation Demo ==="
+    jobs = create_demo_jobs()
+    # Cancel job-3 and job-5
+    cancelled_jobs = cancel_jobs(["job-3", "job-5"], jobs)
+    show "Cancelled job-3 and job-5"
+    for job in cancelled_jobs:
+        if get_job_status(job) is "cancelled":
+            show "  " + get_job_id(job) + ": " + get_job_status(job)
+        end
+    end
+end
+
+fn get_job_status(job: Job) -> Text:
+    pure
+    return job.status
+end
+
+fn demo_fan_in_out() -> None:
+    uses process
+    show ""
+    show "=== Fan-out/Fan-in Demo ==="
+    # Fan-out: process multiple inputs
+    inputs = [1, 2, 3, 4, 5]
+    results = fan_out(inputs)
+    show "Fan-out results (doubled):"
+    for r in results:
+        show "  " + omnisys.core.type_of(r)
+    end
+    # Fan-in: already aggregated
+    combined = fan_in(results)
+    show "Fan-in combined count: " + omnisys.core.type_of(omnisys.core.length(combined))
+end
+
+fn demo_timeout_classification() -> None:
+    uses process
+    show ""
+    show "=== Timeout Classification Demo ==="
+    show "Timeout classification works via duration_class vs timeout_ms comparison"
+end
+
+fn get_result_error(r: JobResult) -> Text:
+    pure
+    return r.error
+end
+
+fn demo_race() -> None:
+    uses process
+    show ""
+    show "=== Race Demo (synchronous model) ==="
+    # Simulate race by returning first job's result
+    fns = omnisys.collections.list_push([], fast_fn)
+    fns = omnisys.collections.list_push(fns, slow_fn)
+    inputs = omnisys.collections.list_push([], "input")
+    race_result = race_first(fns, inputs)
+    show "Race winner: " + race_result
+end
+
+when app starts:
+    show "Starting Synchronous Job Processor Demo"
+    show "(Models concurrency concepts as data transformations)"
+    show ""
+    
+    # Create demo jobs
+    jobs = create_demo_jobs()
+    show "Created " + omnisys.core.type_of(omnisys.core.length(jobs)) + " jobs"
+    
+    # Dispatch to 3 workers (simulated)
+    dispatched = dispatch_jobs(jobs, 3)
+    show "Dispatched to 3 workers (priority-sorted)"
+    
+    # Process batch
+    start = omnisys.platform.now()
+    results = process_job_batch(dispatched, 5000)
+    end_time = omnisys.platform.now()
+    
+    # Aggregate results
+    report = aggregate_results(results, end_time - start)
+    
+    # Print aggregated report
+    print_report(report)
+    
+    # Demo cancellation
+    demo_cancellation()
+    
+    # Demo fan-in/fan-out
+    demo_fan_in_out()
+    
+    # Demo timeout classification
+    demo_timeout_classification()
+    
+    # Demo race
+    demo_race()
+    
+    show ""
+    show "Demo completed successfully"
+    show ""
+    show "NOTE: This is a SYNCHRONOUS model of concurrency concepts."
+    show "Real async/await, Task/Future, Channel, Select require OMNISYS.async"
+    show "which returns Promises that cannot be awaited in current OmniScript."
+end

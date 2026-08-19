@@ -1,0 +1,436 @@
+# OmniScript Multi-Client Messaging Server — Project 2.4 benchmark deliverable.
+#
+# A messaging server over the OMNISYS.net portable request/response transport.
+# Because the shipped OMNISYS.net runtime is an in-process, synchronous,
+# deterministic server-handler model (no real sockets/WebSockets yet), the
+# "clients" here are protocol peers that drive the server through the
+# documented chat protocol below. The server still exercises the full mission
+# surface: connection lifecycle, live client registry, message parsing,
+# channel-scoped broadcasting, clean shutdown, and capability declarations.
+#
+# Chat protocol (method + path + JSON body):
+#   POST /connect     body {"client": NAME, "channel": CH}  -> 200 clients / 400 / 409
+#   POST /disconnect  body {"client": NAME}                 -> 200 clients / 400 / 404
+#   POST /send        body {"sender": NAME, "channel": CH, "payload": TEXT}
+#                                                        -> 200 {message, recipients} / 400 / 404
+#   POST /messages    body {"channel": CH}                 -> 200 channel message log / 400
+#   POST /shutdown    (no body)                            -> 200 ack; afterwards all requests -> 503
+#   GET  /clients                                          -> 200 {clients: "a,b,c"}
+#   GET  /messages                                         -> 200 full message log
+#
+# Message records are parsed into {sender, channel, payload, timestamp}
+# (timestamp stamped by the server at broadcast time via the pure clock).
+# Broadcasting is channel-scoped: a message is delivered to all OTHER
+# connected clients subscribed to the same channel; the send response carries
+# the recipient list, and the shared channel log is readable by any client.
+#
+# Capability model: the effect vocabulary has only `network` for net work
+# (there is no distinct "connection" token). Connection lifecycle functions
+# that touch the transport (start_server, connect_client, disconnect_client,
+# send_message, list_clients, get_messages, read_channel, shutdown_server,
+# send_request) declare `uses network`; the synchronous request handler and
+# all pure parsing/state helpers stay `pure` so net.request can invoke the
+# handler synchronously. Registry mutations (join/leave/broadcast) are
+# serialized by the single-threaded transport, so the client registry cannot
+# be corrupted by concurrent arrivals.
+#
+# Shared mutable state and the emitter: the JS emitter declares a module-level
+# `let` for every name assigned in the entry block AND a function-local `let`
+# for every name assigned inside a function body. A function-local `let` of the
+# same name SHADOWS the module-scope value, so assigning a module resource from
+# a function (e.g. `client_registry = ...`) silently writes a dead local.
+# Therefore functions NEVER assign module resources. They mutate them in place
+# through OMNISYS.collections mutators invoked as bare statement calls
+# (map_set/map_remove/list_push all mutate their first argument and return it;
+# as statements no assignment target is introduced, so no local `let` shadows
+# the module resource). The checker separately enforces E-EFFECT-004: a function
+# that *reads* a module resource without declaring `reads <resource>` is
+# rejected, so every reader declares what it reads.
+
+import OMNISYS.net
+import OMNISYS.core
+import OMNISYS.collections
+import OMNISYS.serde
+import OMNISYS.platform
+
+# --- protocol types ---------------------------------------------------------
+
+type NetRequest = { method: Text, path: Text, body: Text }
+
+type NetResponse = { status: Number, body: Text }
+
+type Client = { name: Text, channel: Text }
+
+type Message = { sender: Text, channel: Text, payload: Text, timestamp: Number }
+
+type Server = { running: Boolean }
+
+type ConnectRequest = { client: Text, channel: Text }
+
+type DisconnectRequest = { client: Text }
+
+type SendRequest = { sender: Text, channel: Text, payload: Text }
+
+type ChannelQuery = { channel: Text }
+
+type ErrorResult = { ok: Boolean, reason: Text }
+
+type ClientListResult = { ok: Boolean, clients: Text }
+
+type BroadcastResult = { ok: Boolean, message: Message, recipients: Text }
+
+type LogResult = { ok: Boolean, messages: Text }
+
+type StatusResult = { ok: Boolean, status: Text }
+
+# --- JSON deserialization helpers -------------------------------------------
+# The result of omnisys.serde.json_decode is statically "unknown", so field
+# access on it is rejected (E-TYPE-002). Decoded payloads are re-wrapped
+# through typed-parameter helpers, which the compiler does not type-check at
+# the call site. (Local names are chosen to avoid the emitter's
+# function-local-`let` shadow defect: no local may equal any module resource.)
+
+fn connect_from_payload(payload: ConnectRequest) -> ConnectRequest:
+    pure
+    return ConnectRequest(client = payload.client, channel = payload.channel)
+end
+
+fn disconnect_from_payload(payload: DisconnectRequest) -> DisconnectRequest:
+    pure
+    return DisconnectRequest(client = payload.client)
+end
+
+fn send_from_payload(payload: SendRequest) -> SendRequest:
+    pure
+    return SendRequest(sender = payload.sender, channel = payload.channel, payload = payload.payload)
+end
+
+fn channel_query_from_payload(payload: ChannelQuery) -> ChannelQuery:
+    pure
+    return ChannelQuery(channel = payload.channel)
+end
+
+fn message_from_payload(payload: Message) -> Message:
+    pure
+    return Message(sender = payload.sender, channel = payload.channel, payload = payload.payload, timestamp = payload.timestamp)
+end
+
+fn client_from_value(payload: Client) -> Client:
+    pure
+    return Client(name = payload.name, channel = payload.channel)
+end
+
+# Pure parsing of a full message record (sender, channel, payload, timestamp).
+
+fn parse_message(body: Text) -> Message:
+    pure
+    raw_payload = omnisys.serde.json_decode(body)
+    return message_from_payload(raw_payload)
+end
+
+# --- registry helpers (live set of connected clients) -----------------------
+# client_registry is a map keyed by client name. map_set / map_remove mutate it
+# in place (called as statements from the transitions below); readers declare
+# `reads client_registry` to satisfy the E-EFFECT-004 module-data check.
+
+fn client_names() -> Text:
+    pure
+    reads client_registry
+    return omnisys.collections.list_join(omnisys.collections.map_keys(client_registry), ",")
+end
+
+fn is_connected(name: Text) -> Boolean:
+    pure
+    reads client_registry
+    return omnisys.collections.map_has(client_registry, name)
+end
+
+# --- broadcasting helpers (channel-scoped delivery) -------------------------
+
+fn collect_recipient(names: List, entry: Client, sender: Text, channel: Text) -> List:
+    pure
+    if entry.name is sender:
+        return names
+    end
+    if entry.channel is channel:
+        return omnisys.collections.list_push(names, entry.name)
+    end
+    return names
+end
+
+fn recipients_for(sender: Text, channel: Text) -> Text:
+    pure
+    reads client_registry
+    collected_names = []
+    all_names = omnisys.collections.map_keys(client_registry)
+    for name_item in all_names:
+        collected_names = collect_recipient(collected_names, client_from_value(omnisys.collections.map_get(client_registry, name_item)), sender, channel)
+    end
+    return omnisys.collections.list_join(collected_names, ",")
+end
+
+fn collect_channel_message(out_list: List, entry: Message, channel: Text) -> List:
+    pure
+    if entry.channel is channel:
+        return omnisys.collections.list_push(out_list, entry)
+    end
+    return out_list
+end
+
+# --- request transitions (pure state changes over typed payloads) -----------
+# Field access is only legal on values of a declared custom type, so the
+# handler logic lives in "transition" functions whose payload parameters are
+# the decoded request types; the handlers below only decode and re-wrap.
+# State changes mutate the module resources IN PLACE via statement calls, so
+# no function-local `let` is introduced that would shadow the module value.
+
+fn connect_transition(payload: ConnectRequest) -> NetResponse:
+    pure
+    reads client_registry
+    if omnisys.core.is_empty(payload.client):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "missing client"))
+    end
+    if omnisys.core.is_empty(payload.channel):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "missing channel"))
+    end
+    if is_connected(payload.client):
+        return omnisys.net.response_json(409, ErrorResult(ok = false, reason = "already connected"))
+    end
+    omnisys.collections.map_set(client_registry, payload.client, Client(name = payload.client, channel = payload.channel))
+    return omnisys.net.response_json(200, ClientListResult(ok = true, clients = client_names()))
+end
+
+fn disconnect_transition(payload: DisconnectRequest) -> NetResponse:
+    pure
+    reads client_registry
+    if omnisys.core.is_empty(payload.client):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "missing client"))
+    end
+    if is_connected(payload.client) is false:
+        return omnisys.net.response_json(404, ErrorResult(ok = false, reason = "client not connected"))
+    end
+    omnisys.collections.map_remove(client_registry, payload.client)
+    return omnisys.net.response_json(200, ClientListResult(ok = true, clients = client_names()))
+end
+
+fn send_transition(payload: SendRequest) -> NetResponse:
+    pure
+    reads message_log
+    if omnisys.core.is_empty(payload.sender):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "missing sender"))
+    end
+    if omnisys.core.is_empty(payload.channel):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "missing channel"))
+    end
+    if omnisys.core.is_empty(payload.payload):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "missing payload"))
+    end
+    if is_connected(payload.sender) is false:
+        return omnisys.net.response_json(404, ErrorResult(ok = false, reason = "sender not connected"))
+    end
+    msg = Message(sender = payload.sender, channel = payload.channel, payload = payload.payload, timestamp = omnisys.platform.now())
+    omnisys.collections.list_push(message_log, msg)
+    recipients = recipients_for(payload.sender, payload.channel)
+    return omnisys.net.response_json(200, BroadcastResult(ok = true, message = msg, recipients = recipients))
+end
+
+fn channel_messages_transition(payload: ChannelQuery) -> NetResponse:
+    pure
+    reads message_log
+    if omnisys.core.is_empty(payload.channel):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "missing channel"))
+    end
+    filtered_messages = []
+    for log_item in message_log:
+        filtered_messages = collect_channel_message(filtered_messages, log_item, payload.channel)
+    end
+    return omnisys.net.response_json(200, LogResult(ok = true, messages = omnisys.serde.json_encode(filtered_messages)))
+end
+
+# --- request handlers (pure; decode + dispatch to a transition) -------------
+
+fn connect_handler(req: NetRequest) -> NetResponse:
+    pure
+    if omnisys.core.is_empty(req.body):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "empty body"))
+    end
+    decoded = omnisys.serde.json_decode(req.body)
+    return connect_transition(connect_from_payload(decoded))
+end
+
+fn disconnect_handler(req: NetRequest) -> NetResponse:
+    pure
+    if omnisys.core.is_empty(req.body):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "empty body"))
+    end
+    decoded = omnisys.serde.json_decode(req.body)
+    return disconnect_transition(disconnect_from_payload(decoded))
+end
+
+fn send_handler(req: NetRequest) -> NetResponse:
+    pure
+    if omnisys.core.is_empty(req.body):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "empty body"))
+    end
+    decoded = omnisys.serde.json_decode(req.body)
+    return send_transition(send_from_payload(decoded))
+end
+
+fn channel_messages_handler(req: NetRequest) -> NetResponse:
+    pure
+    if omnisys.core.is_empty(req.body):
+        return omnisys.net.response_json(400, ErrorResult(ok = false, reason = "empty body"))
+    end
+    decoded = omnisys.serde.json_decode(req.body)
+    return channel_messages_transition(channel_query_from_payload(decoded))
+end
+
+fn shutdown_handler(req: NetRequest) -> NetResponse:
+    pure
+    reads shut_down_flag
+    omnisys.collections.list_push(shut_down_flag, true)
+    return omnisys.net.response_json(200, StatusResult(ok = true, status = "shutting down"))
+end
+
+fn clients_handler(req: NetRequest) -> NetResponse:
+    pure
+    return omnisys.net.response_json(200, ClientListResult(ok = true, clients = client_names()))
+end
+
+fn messages_handler(req: NetRequest) -> NetResponse:
+    pure
+    reads message_log
+    return omnisys.net.response_json(200, LogResult(ok = true, messages = omnisys.serde.json_encode(message_log)))
+end
+
+# --- routing -----------------------------------------------------------------
+
+fn route_get(req: NetRequest) -> NetResponse:
+    pure
+    if req.path is "/clients":
+        return clients_handler(req)
+    end
+    if req.path is "/messages":
+        return messages_handler(req)
+    end
+    return NetResponse(status = 404, body = "unknown path")
+end
+
+fn route_post(req: NetRequest) -> NetResponse:
+    pure
+    if req.path is "/connect":
+        return connect_handler(req)
+    end
+    if req.path is "/disconnect":
+        return disconnect_handler(req)
+    end
+    if req.path is "/send":
+        return send_handler(req)
+    end
+    if req.path is "/messages":
+        return channel_messages_handler(req)
+    end
+    if req.path is "/shutdown":
+        return shutdown_handler(req)
+    end
+    return NetResponse(status = 404, body = "unknown path")
+end
+
+fn route(req: NetRequest) -> NetResponse:
+    pure
+    reads shut_down_flag
+    if omnisys.collections.list_contains(shut_down_flag, true):
+        return NetResponse(status = 503, body = "server shut down")
+    end
+    if req.method is "POST":
+        return route_post(req)
+    end
+    if req.method is "GET":
+        return route_get(req)
+    end
+    return NetResponse(status = 405, body = "method not allowed")
+end
+
+# --- server lifecycle (capability: network) ---------------------------------
+# These are the connection-side-effect boundaries: they declare the network
+# capability the effect checker enforces for every OMNISYS.net call. The
+# server handler itself (route, and every handler/transition below it) is
+# pure so net.request can invoke it synchronously.
+
+fn start_server() -> Server:
+    uses network
+    server_value = omnisys.net.server(route)
+    return omnisys.net.start(server_value)
+end
+
+fn shutdown_server(server: Server) -> Number:
+    uses network
+    response_value = omnisys.net.post(server, "/shutdown", "")
+    return omnisys.net.status_of(response_value)
+end
+
+# --- protocol client functions (capability: network) ------------------------
+# Simulated clients drive the server through these; each returns the HTTP
+# status (Number) or the raw response body (Text).
+
+fn send_request(server: Server, method: Text, path: Text, body: Text) -> Number:
+    uses network
+    response_value = omnisys.net.request(server, method, path, body)
+    return omnisys.net.status_of(response_value)
+end
+
+fn send_request_body(server: Server, method: Text, path: Text, body: Text) -> Text:
+    uses network
+    response_value = omnisys.net.request(server, method, path, body)
+    return omnisys.net.body_of(response_value)
+end
+
+fn connect_client(server: Server, name: Text, channel: Text) -> Number:
+    uses network
+    body_text = omnisys.serde.json_encode(ConnectRequest(client = name, channel = channel))
+    response_value = omnisys.net.post(server, "/connect", body_text)
+    return omnisys.net.status_of(response_value)
+end
+
+fn disconnect_client(server: Server, name: Text) -> Number:
+    uses network
+    body_text = omnisys.serde.json_encode(DisconnectRequest(client = name))
+    response_value = omnisys.net.post(server, "/disconnect", body_text)
+    return omnisys.net.status_of(response_value)
+end
+
+fn send_message(server: Server, sender: Text, channel: Text, payload: Text) -> Number:
+    uses network
+    body_text = omnisys.serde.json_encode(SendRequest(sender = sender, channel = channel, payload = payload))
+    response_value = omnisys.net.post(server, "/send", body_text)
+    return omnisys.net.status_of(response_value)
+end
+
+fn list_clients(server: Server) -> Text:
+    uses network
+    response_value = omnisys.net.get(server, "/clients")
+    return omnisys.net.body_of(response_value)
+end
+
+fn get_messages(server: Server) -> Text:
+    uses network
+    response_value = omnisys.net.get(server, "/messages")
+    return omnisys.net.body_of(response_value)
+end
+
+fn read_channel(server: Server, channel: Text) -> Text:
+    uses network
+    body_text = omnisys.serde.json_encode(ChannelQuery(channel = channel))
+    response_value = omnisys.net.post(server, "/messages", body_text)
+    return omnisys.net.body_of(response_value)
+end
+
+# --- demo entry (pure only; the effectful protocol is exercised end-to-end
+# by the pytest suite through the compiled JS artifact) -----------------------
+
+when app starts:
+    client_registry = []
+    message_log = []
+    shut_down_flag = []
+    show "chat_server.omni loaded: call start_server() then drive the chat protocol"
+end

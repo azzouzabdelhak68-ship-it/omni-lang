@@ -1,0 +1,4 @@
+fn test_fn() -> Number:
+    uses process
+    return 42
+end

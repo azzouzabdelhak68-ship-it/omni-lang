@@ -1,0 +1,198 @@
+# Benchmark 3.3 — GPU Image Processing Pipeline.
+#
+# A portable image-processing pipeline for a 4x4 (16-pixel) image:
+#   1. Data buffers: omnisys.gpu.buffer(pixels) represents the device
+#      transfer (allocate); read-back via omnisys.collections.map_get on
+#      the buffer's "data" field. There is NO explicit free/release op in
+#      the portable model — release is implicit (documented finding).
+#   2. Compute kernels: blur / sharpen / edge-detect implemented as pure
+#      per-pixel kernels dispatched through omnisys.gpu.compute(kernel,
+#      input, size), which runs kernel(i, input) for i in 0..size-1.
+#   3. Memory management: host list -> buffer -> compute -> result readback.
+#   4. Backend abstraction: select_backend(...) picks a device; device_info
+#      exposes the active portable backend metadata.
+#   5. Capability declaration: every function touching omnisys.gpu.compute
+#      or device_info declares `uses GPU`. Kernels themselves are pure.
+#
+# Image layout: input = [width, p0, p1, ..., p15] (flattened, row-major).
+# Inside each kernel: w = list_get(input, 0); center = list_get(input, i+1);
+# neighbors at i, i+2, i+1-w, i+1+w with nested-if bounds guards (no
+# boolean and/or/not, no % operator — column is derived via floor division).
+
+import OMNISYS.gpu
+import OMNISYS.collections
+import OMNISYS.core
+
+# --- convolution kernels (pure; executed per-pixel by the GPU lane) -------
+
+fn blur_kernel(i: Number, input: List) -> Number:
+    pure
+    w = omnisys.collections.list_get(input, 0)
+    total = omnisys.core.length(input)
+    n = total - 1
+    center = omnisys.collections.list_get(input, i + 1)
+    row = omnisys.core.floor(i / w)
+    col = i - row * w
+    up = center
+    down = center
+    left = center
+    right = center
+    if i greater or equal w:
+        up = omnisys.collections.list_get(input, i + 1 - w)
+    end
+    if i + 1 + w less or equal n:
+        down = omnisys.collections.list_get(input, i + 1 + w)
+    end
+    if col greater than 0:
+        left = omnisys.collections.list_get(input, i)
+    end
+    if col less than w - 1:
+        right = omnisys.collections.list_get(input, i + 2)
+    end
+    s = center + left + right + up + down
+    return s / 5
+end
+
+fn sharpen_kernel(i: Number, input: List) -> Number:
+    pure
+    w = omnisys.collections.list_get(input, 0)
+    total = omnisys.core.length(input)
+    n = total - 1
+    center = omnisys.collections.list_get(input, i + 1)
+    row = omnisys.core.floor(i / w)
+    col = i - row * w
+    up = center
+    down = center
+    left = center
+    right = center
+    if i greater or equal w:
+        up = omnisys.collections.list_get(input, i + 1 - w)
+    end
+    if i + 1 + w less or equal n:
+        down = omnisys.collections.list_get(input, i + 1 + w)
+    end
+    if col greater than 0:
+        left = omnisys.collections.list_get(input, i)
+    end
+    if col less than w - 1:
+        right = omnisys.collections.list_get(input, i + 2)
+    end
+    s = left + right + up + down
+    return center * 5 - s
+end
+
+fn edge_kernel(i: Number, input: List) -> Number:
+    pure
+    w = omnisys.collections.list_get(input, 0)
+    total = omnisys.core.length(input)
+    n = total - 1
+    center = omnisys.collections.list_get(input, i + 1)
+    row = omnisys.core.floor(i / w)
+    col = i - row * w
+    up = center
+    down = center
+    left = center
+    right = center
+    if i greater or equal w:
+        up = omnisys.collections.list_get(input, i + 1 - w)
+    end
+    if i + 1 + w less or equal n:
+        down = omnisys.collections.list_get(input, i + 1 + w)
+    end
+    if col greater than 0:
+        left = omnisys.collections.list_get(input, i)
+    end
+    if col less than w - 1:
+        right = omnisys.collections.list_get(input, i + 2)
+    end
+    diff_v = omnisys.core.abs(up - down)
+    diff_h = omnisys.core.abs(left - right)
+    return diff_v + diff_h
+end
+
+# --- filter dispatch (capability: GPU) ------------------------------------
+
+fn apply_filter(pixels: List, mode: Number) -> List:
+    uses GPU
+    data = omnisys.collections.list_append([4], pixels)
+    n = omnisys.core.length(data) - 1
+    if mode is 1:
+        return omnisys.gpu.compute(blur_kernel, data, n)
+    end
+    if mode is 2:
+        return omnisys.gpu.compute(sharpen_kernel, data, n)
+    end
+    return omnisys.gpu.compute(edge_kernel, data, n)
+end
+
+# --- data buffer lifecycle (allocate + read back; release is implicit) ----
+
+fn transfer_and_readback(pixels: List) -> List:
+    uses GPU
+    buf = omnisys.gpu.buffer(pixels)
+    raw = omnisys.collections.map_get(buf, "data")
+    return raw
+end
+
+# --- backend abstraction ---------------------------------------------------
+
+fn select_backend(desired: Text) -> Text:
+    pure
+    if desired is "cuda":
+        return "cuda"
+    end
+    if desired is "metal":
+        return "metal"
+    end
+    if desired is "vulkan":
+        return "vulkan"
+    end
+    if desired is "webgpu":
+        return "webgpu"
+    end
+    return "portable-cpu"
+end
+
+fn query_device() -> Text:
+    uses GPU
+    info = omnisys.gpu.device_info()
+    name = omnisys.collections.map_get(info, "name")
+    cores = omnisys.collections.map_get(info, "cores")
+    return "backend={name} cores={cores}"
+end
+
+fn run_pipeline(pixels: List, mode: Number, backend: Text) -> List:
+    uses GPU
+    chosen = select_backend(backend)
+    data = omnisys.collections.list_append([4], pixels)
+    n = omnisys.core.length(data) - 1
+    buf = omnisys.gpu.buffer(data)
+    if mode is 1:
+        return omnisys.gpu.compute(blur_kernel, data, n)
+    end
+    if mode is 2:
+        return omnisys.gpu.compute(sharpen_kernel, data, n)
+    end
+    return omnisys.gpu.compute(edge_kernel, data, n)
+end
+
+# --- demo entry point (no effect declarations allowed here) ---------------
+
+when app starts:
+    pixels = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]
+    show "image 4x4 loaded"
+    blur = apply_filter(pixels, 1)
+    show omnisys.collections.list_join(blur, ",")
+    sharpen = apply_filter(pixels, 2)
+    show omnisys.collections.list_join(sharpen, ",")
+    edge = apply_filter(pixels, 3)
+    show omnisys.collections.list_join(edge, ",")
+    readback = transfer_and_readback(pixels)
+    show omnisys.collections.list_join(readback, ",")
+    dev = query_device()
+    show dev
+    show select_backend("cuda")
+    show select_backend("directx")
+    pipeline_out = run_pipeline(pixels, 1, "vulkan")
+    show omnisys.collections.list_join(pipeline_out, ",")
+end

@@ -1,0 +1,33 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+type Task = { title: Text, completed: Boolean, priority: Number, category: Text }
+
+fn make_task_list() -> List:
+    pure
+    t1 = { title: "task1", completed: false, priority: 1, category: "cat1" }
+    t2 = { title: "task2", completed: false, priority: 2, category: "cat2" }
+    t3 = { title: "task3", completed: true, priority: 1, category: "cat1" }
+    tasks = []
+    tasks = omnisys.collections.list_push(tasks, t1)
+    tasks = omnisys.collections.list_push(tasks, t2)
+    tasks = omnisys.collections.list_push(tasks, t3)
+    return tasks
+end
+
+fn process_tasks(tasks: List) -> Number:
+    pure
+    count = 0
+    for task in tasks:
+        if task.completed is true:
+            count = count + 1
+        end
+    end
+    return count
+end
+
+when app starts:
+    tasks = make_task_list()
+    completed = process_tasks(tasks)
+    show "Completed: " + omnisys.core.type_of(completed)
+end

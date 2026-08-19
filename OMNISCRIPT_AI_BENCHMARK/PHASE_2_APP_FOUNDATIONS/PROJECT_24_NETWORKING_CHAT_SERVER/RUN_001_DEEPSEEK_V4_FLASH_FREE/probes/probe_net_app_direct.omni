@@ -1,0 +1,7 @@
+# Negative probe: app block calling omnisys.net.* directly -> expect E-EFFECT-003.
+import OMNISYS.net
+
+when app starts:
+    response_value = omnisys.net.get("inproc://test/x")
+    show response_value
+end

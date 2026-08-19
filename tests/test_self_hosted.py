@@ -29,25 +29,25 @@ from omni_compiler.lexer import tokenize
 from omni_compiler.mir import to_mir
 from omni_compiler.parser import parse
 
-SELF_HOSTED = Path("self_hosted/compiler.omni")
+SELF_HOSTED = Path('self_hosted/compiler.omni')
 
 HARNESS = """
 global.document = {
-  getElementById: function () { return { innerHTML: "" }; },
+  getElementById: function () { return { innerHTML: "", addEventListener: function () {} }; },
   querySelectorAll: function () { return []; },
 };
 """
 
 
 def _node_available() -> bool:
-    return shutil.which("node") is not None
+    return shutil.which('node') is not None
 
 
-needs_node = pytest.mark.skipif(not _node_available(), reason="node not installed")
+needs_node = pytest.mark.skipif(not _node_available(), reason='node not installed')
 
 
 def _emit_self_hosted() -> str:
-    code = SELF_HOSTED.read_text(encoding="utf-8")
+    code = SELF_HOSTED.read_text(encoding='utf-8')
     ast = parse(tokenize(code))
     symbol_table = analyze(ast)
     mir = to_mir(ast, symbol_table)
@@ -55,20 +55,20 @@ def _emit_self_hosted() -> str:
 
 
 def _script_of(html: str) -> str:
-    match = re.search(r"<script>(.*)</script>", html, re.DOTALL)
-    assert match is not None, "emitted HTML contains no <script> block"
+    match = re.search(r'<script>(.*)</script>', html, re.DOTALL)
+    assert match is not None, 'emitted HTML contains no <script> block'
     return match.group(1)
 
 
 def _run_node(source: str) -> str:
     result = subprocess.run(
-        ["node", "-e", source],
+        ['node', '-e', source],
         capture_output=True,
         text=True,
-        cwd=".",
+        cwd='.',
         check=False,
     )
-    assert result.returncode == 0, f"node failed:\n{result.stderr}\n{result.stdout}"
+    assert result.returncode == 0, f'node failed:\n{result.stderr}\n{result.stdout}'
     return result.stdout
 
 
@@ -82,14 +82,14 @@ class TestSelfHostedSource:
 
     def test_compiler_omni_emits_its_own_functions(self) -> None:
         js = _emit_self_hosted()
-        for fn in ["compile_program", "emit_fn", "emit_stmt", "emit_block", "emit_expr"]:
-            assert f"function {fn}" in js, f"self-hosted compiler missing function {fn}"
+        for fn in ['compile_program', 'emit_fn', 'emit_stmt', 'emit_block', 'emit_expr']:
+            assert f'function {fn}' in js, f'self-hosted compiler missing function {fn}'
 
     def test_compiler_omni_declares_pure(self) -> None:
-        code = SELF_HOSTED.read_text(encoding="utf-8")
+        code = SELF_HOSTED.read_text(encoding='utf-8')
         ast = parse(tokenize(code))
         for fn in ast.functions:
-            assert fn.effects.get("pure") is True, f"{fn.name} must be declared pure"
+            assert fn.effects.get('pure') is True, f'{fn.name} must be declared pure'
 
 
 class TestBootstrap:
@@ -97,24 +97,24 @@ class TestBootstrap:
 
     @needs_node
     def test_compiler_compiles_itself_in_node(self) -> None:
-        node_src = HARNESS + _script_of(_emit_self_hosted()) + "\nconsole.log(compiled_self);"
+        node_src = HARNESS + _script_of(_emit_self_hosted()) + '\nconsole.log(compiled_self);'
         out = _run_node(node_src)
-        assert "function emit_expr" in out, f"self-compiled output missing emit_expr:\n{out}"
+        assert 'function emit_expr' in out, f'self-compiled output missing emit_expr:\n{out}'
         assert "e.kind === 'number'" in out
-        assert "return e.value;" in out
+        assert 'return e.value;' in out
 
     @needs_node
     def test_self_compiled_output_is_syntax_valid_js(self) -> None:
-        node_src = HARNESS + _script_of(_emit_self_hosted()) + "\nconsole.log(compiled_self);"
+        node_src = HARNESS + _script_of(_emit_self_hosted()) + '\nconsole.log(compiled_self);'
         out = _run_node(node_src)
         result = subprocess.run(
-            ["node", "--check", "-"],
+            ['node', '--check', '-'],
             input=out,
             capture_output=True,
             text=True,
             check=False,
         )
-        assert result.returncode == 0, f"self-compiled output is not valid JS:\n{result.stderr}"
+        assert result.returncode == 0, f'self-compiled output is not valid JS:\n{result.stderr}'
 
 
 class TestCompileProgram:
@@ -122,7 +122,10 @@ class TestCompileProgram:
 
     @needs_node
     def test_emits_function_and_statements(self) -> None:
-        node_src = HARNESS + _script_of(_emit_self_hosted()) + """
+        node_src = (
+            HARNESS
+            + _script_of(_emit_self_hosted())
+            + """
 const prog = [
   { kind: "fn", name: "add", params: "a, b", ret: "Number", value: "",
     cond: "", variable: "", iterable: "", body: [
@@ -136,15 +139,19 @@ const prog = [
 ];
 console.log(compile_program(prog));
 """
+        )
         out = _run_node(node_src)
-        assert "function add(a, b)" in out
-        assert "return a + b;" in out
-        assert "total = add(1, 2);" in out
-        assert "console.log(total);" in out
+        assert 'function add(a, b)' in out
+        assert 'return a + b;' in out
+        assert 'total = add(1, 2);' in out
+        assert 'console.log(total);' in out
 
     @needs_node
     def test_generated_program_runs_and_prints_result(self) -> None:
-        node_src = HARNESS + _script_of(_emit_self_hosted()) + """
+        node_src = (
+            HARNESS
+            + _script_of(_emit_self_hosted())
+            + """
 const prog = [
   { kind: "fn", name: "add", params: "a, b", ret: "Number", value: "",
     cond: "", variable: "", iterable: "", body: [
@@ -158,12 +165,16 @@ const prog = [
 ];
 eval(compile_program(prog));
 """
+        )
         out = _run_node(node_src)
-        assert "3" in out.splitlines(), f"expected '3' in output:\n{out}"
+        assert '3' in out.splitlines(), f"expected '3' in output:\n{out}"
 
     @needs_node
     def test_generated_program_syntax_checked(self) -> None:
-        node_src = HARNESS + _script_of(_emit_self_hosted()) + """
+        node_src = (
+            HARNESS
+            + _script_of(_emit_self_hosted())
+            + """
 const prog = [
   { kind: "if", name: "", value: "", cond: "x > 0", variable: "",
     iterable: "", params: "", ret: "", body: [
@@ -181,14 +192,15 @@ const prog = [
 ];
 console.log(compile_program(prog));
 """
+        )
         out = _run_node(node_src)
-        assert "if (x > 0)" in out
-        assert "for (const n of items)" in out
+        assert 'if (x > 0)' in out
+        assert 'for (const n of items)' in out
         result = subprocess.run(
-            ["node", "--check", "-"],
+            ['node', '--check', '-'],
             input=out,
             capture_output=True,
             text=True,
             check=False,
         )
-        assert result.returncode == 0, f"generated JS invalid:\n{result.stderr}"
+        assert result.returncode == 0, f'generated JS invalid:\n{result.stderr}'

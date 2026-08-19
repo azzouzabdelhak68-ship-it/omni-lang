@@ -1,1 +1,1 @@
-# OmniScript Compiler Package
+"""OmniScript Compiler Package."""

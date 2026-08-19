@@ -1,0 +1,29 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+fn contains_substring_rec(text: Text, substring: Text, start: Number) -> Boolean:
+    pure
+    text_len = omnisys.core.length(text)
+    sub_len = omnisys.core.length(substring)
+    max_start = text_len - sub_len
+    if start greater than max_start:
+        return false
+    end
+    slice = omnisys.collections.list_slice(text, start, start + sub_len)
+    if slice is substring:
+        return true
+    end
+    return contains_substring_rec(text, substring, start + 1)
+end
+
+fn contains_substring(text: Text, substring: Text) -> Boolean:
+    pure
+    return contains_substring_rec(text, substring, 0)
+end
+
+when app starts:
+    result = contains_substring("hello world", "world")
+    show "result: " + omnisys.core.type_of(result)
+    result2 = contains_substring("hello world", "xyz")
+    show "result2: " + omnisys.core.type_of(result2)
+end

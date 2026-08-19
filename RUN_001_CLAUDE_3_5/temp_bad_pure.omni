@@ -1,0 +1,6 @@
+import OMNISYS.core
+import OMNISYS.platform
+fn bad_pure() -> Number:
+    pure
+    return OMNISYS.platform.os()
+end

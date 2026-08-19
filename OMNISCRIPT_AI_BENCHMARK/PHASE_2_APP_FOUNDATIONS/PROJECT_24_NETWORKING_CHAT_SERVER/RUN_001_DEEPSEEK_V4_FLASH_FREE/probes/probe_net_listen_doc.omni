@@ -1,0 +1,9 @@
+# Negative probe: docs README claims net.listen; registry has no such fn.
+# Expect name error (E-NAME-001), proving docs lag the registry.
+import OMNISYS.net
+
+fn listen_probe(port: Number) -> Number:
+    uses network
+    response_value = omnisys.net.listen(port)
+    return 0
+end

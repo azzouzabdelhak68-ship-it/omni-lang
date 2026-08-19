@@ -1,0 +1,28 @@
+import OMNISYS.fs
+import OMNISYS.core
+
+fn test_fs_operations(path: Text) -> Text:
+    uses filesystem
+    exists = omnisys.fs.file_exists(path)
+    if exists:
+        size = omnisys.fs.file_size(path)
+        return "exists, size=" + omnisys.core.type_of(size)
+    else:
+        return "not found"
+    end
+end
+
+fn test_path_helpers(path: Text) -> Text:
+    pure
+    base = omnisys.fs.basename(path)
+    dir = omnisys.fs.dirname(path)
+    joined = omnisys.fs.join_path(dir, base)
+    return "base=" + base + ", dir=" + dir + ", joined=" + joined
+end
+
+when app starts:
+    result1 = test_fs_operations(".")
+    result2 = test_path_helpers("path/to/file.txt")
+    show result1
+    show result2
+end

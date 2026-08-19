@@ -1,0 +1,79 @@
+# Probe 2b: structs, accessor fns, loops, string comparison, live-linked inline styles.
+# Replaces the <style> block (mangled by the slot converter) with inline style
+# attributes whose display value is a live slot.
+
+import OMNISYS
+import OMNISYS.collections
+
+type Transaction = { date: Text, category: Text, amount: Number, description: Text }
+
+when app starts:
+    t1 = Transaction(date="2025-11-01", category="Food", amount=12.50, description="Coffee")
+    t2 = Transaction(date="2025-11-03", category="Rent", amount=800.0, description="Rent")
+    transactions = [t1, t2]
+    view = "overview"
+    balance = 0.0
+    visible_count = 0
+    overview_display = "block"
+    transactions_display = "none"
+    breakdown_display = "none"
+    recompute()
+end
+
+fn recompute:
+    balance = 0.0
+    visible_count = 0
+    for t in transactions:
+        balance = balance + tx_amount(t)
+        visible_count = visible_count + 1
+    end
+    if view is "overview":
+        overview_display = "block"
+        transactions_display = "none"
+        breakdown_display = "none"
+    end
+    if view is "transactions":
+        overview_display = "none"
+        transactions_display = "block"
+        breakdown_display = "none"
+    end
+    if view is "breakdown":
+        overview_display = "none"
+        transactions_display = "none"
+        breakdown_display = "block"
+    end
+end
+
+fn tx_amount(tx: Transaction) -> Number:
+    return tx.amount
+end
+
+fn tx_date(tx: Transaction) -> Text:
+    return tx.date
+end
+
+fn go_transactions:
+    writes view
+    view = "transactions"
+    recompute()
+end
+
+fn filter_this_month:
+    writes visible_count
+    visible_count = 0
+    for t in transactions:
+        if tx_date(t) >= "2025-11-01":
+            if tx_date(t) <= "2025-11-30":
+                visible_count = visible_count + 1
+            end
+        end
+    end
+end
+
+UI:
+<div style="padding:8px; display:{overview_display}"><b>Overview</b> balance={balance}</div>
+<div style="padding:8px; display:{transactions_display}"><b>Transactions</b> count={visible_count}</div>
+<div style="padding:8px; display:{breakdown_display}"><b>Breakdown</b></div>
+<button click="go_transactions">Go to Transactions</button>
+<button click="filter_this_month">Filter this month</button>
+end

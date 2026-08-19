@@ -1,0 +1,22 @@
+# Probe 3: OMNISYS.ui state/bind/render — are the "reactive state primitives"
+# integrated with the live-link system? Hypothesis: NO (emitter does not wire them).
+
+import OMNISYS
+import OMNISYS.ui
+
+when app starts:
+    s = omnisys.ui.state(0)
+    el = omnisys.ui.text("hi")
+    html = omnisys.ui.render(el)
+    show html
+    show omnisys.ui.state_get(s)
+end
+
+fn bump_state:
+    omnisys.ui.state_set(s, 42)
+end
+
+UI:
+<div>slot_value={omnisys.ui.state_get(s)}</div>
+<button click="bump_state">Bump</button>
+end

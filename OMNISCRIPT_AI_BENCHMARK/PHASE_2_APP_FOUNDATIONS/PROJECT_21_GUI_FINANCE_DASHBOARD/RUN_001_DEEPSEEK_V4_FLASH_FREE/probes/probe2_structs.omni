@@ -1,0 +1,87 @@
+# Probe 2: structs, accessor fns, loops, string comparison, class-toggle views.
+# Questions:
+#  Q1: Can a for-loop var (typed Number by checker) have fields accessed? (expect E-TYPE-002)
+#  Q2: Does an accessor fn taking a Transaction param allow field access on loop items?
+#  Q3: Do string > / < / >= / <= comparisons work on ISO dates?
+#  Q4: Can live-linked class attributes switch "views" via CSS?
+#  Q5: Does a slot expression support function calls like {fmt(x)}?
+
+import OMNISYS
+import OMNISYS.collections
+
+type Transaction = { date: Text, category: Text, amount: Number, description: Text }
+
+when app starts:
+    t1 = Transaction(date="2025-11-01", category="Food", amount=12.50, description="Coffee")
+    t2 = Transaction(date="2025-11-03", category="Rent", amount=800.0, description="Rent")
+    transactions = [t1, t2]
+    view = "overview"
+    balance = 0.0
+    visible_count = 0
+    overview_class = "panel"
+    transactions_class = "panel hidden"
+    breakdown_class = "panel hidden"
+    recompute()
+end
+
+fn recompute:
+    balance = 0.0
+    visible_count = 0
+    for t in transactions:
+        balance = balance + tx_amount(t)
+        visible_count = visible_count + 1
+    end
+    if view is "overview":
+        overview_class = "panel"
+        transactions_class = "panel hidden"
+        breakdown_class = "panel hidden"
+    end
+    if view is "transactions":
+        overview_class = "panel hidden"
+        transactions_class = "panel"
+        breakdown_class = "panel hidden"
+    end
+    if view is "breakdown":
+        overview_class = "panel hidden"
+        transactions_class = "panel hidden"
+        breakdown_class = "panel"
+    end
+end
+
+fn tx_amount(tx: Transaction) -> Number:
+    return tx.amount
+end
+
+fn go_transactions:
+    writes view
+    view = "transactions"
+    recompute()
+end
+
+fn filter_this_month:
+    writes visible_count
+    visible_count = 0
+    for t in transactions:
+        if tx_date(t) >= "2025-11-01":
+            if tx_date(t) <= "2025-11-30":
+                visible_count = visible_count + 1
+            end
+        end
+    end
+end
+
+fn tx_date(tx: Transaction) -> Text:
+    return tx.date
+end
+
+UI:
+<style>
+  .panel { padding: 8px; }
+  .hidden { display: none; }
+</style>
+<div class="{overview_class}"><b>Overview</b> balance={balance}</div>
+<div class="{transactions_class}"><b>Transactions</b> count={visible_count}</div>
+<div class="{breakdown_class}"><b>Breakdown</b></div>
+<button click="go_transactions">Go to Transactions</button>
+<button click="filter_this_month">Filter this month</button>
+end

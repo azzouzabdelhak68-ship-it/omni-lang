@@ -1,0 +1,13 @@
+import OMNISYS.collections
+
+type LogRecord = { timestamp: Number, severity: Text, source: Text, message: Text }
+
+fn test_map() -> Number:
+    m = LogRecord(timestamp=0, severity="INFO", source="test", message="test")
+    omnisys.collections.map_set(m, "extra", "value")
+    return omnisys.collections.map_size(m)
+end
+
+when app starts:
+    show "Map test: {test_map()}"
+end

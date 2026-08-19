@@ -31,9 +31,9 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "double add(double a, double b)" in c_code
-    assert "return (a + b);" in c_code
-    assert "int main(" in c_code
+    assert 'double add(double a, double b)' in c_code
+    assert 'return (a + b);' in c_code
+    assert 'int main(' in c_code
 
 
 def test_c_emitter_custom_types():
@@ -51,9 +51,9 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "typedef struct Person" in c_code
-    assert "const char* name;" in c_code
-    assert "double age;" in c_code
+    assert 'typedef struct Person' in c_code
+    assert 'const char* name;' in c_code
+    assert 'double age;' in c_code
 
 
 def test_c_emitter_loops_and_conditionals():
@@ -78,10 +78,10 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "double sum_all(" in c_code
-    assert "for (" in c_code
-    assert "continue;" in c_code
-    assert "break;" in c_code
+    assert 'double sum_all(' in c_code
+    assert 'for (' in c_code
+    assert 'continue;' in c_code
+    assert 'break;' in c_code
 
 
 def test_c_emitter_string_interpolation_and_join():
@@ -96,7 +96,7 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "omni_join(" in c_code
+    assert 'omni_join(' in c_code
 
 
 def test_c_emitter_flecs_adapter():
@@ -116,9 +116,9 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "flecs.h" in c_code
-    assert "ecs_init()" in c_code
-    assert "ecs_new_entity" in c_code or "flecs" in c_code.lower()
+    assert 'flecs.h' in c_code
+    assert 'ecs_init()' in c_code
+    assert 'ecs_new_entity' in c_code or 'flecs' in c_code.lower()
 
 
 def test_c_emitter_interpolation_uses_omni_format():
@@ -133,8 +133,8 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "omni_format(" in c_code
-    assert "%s" in c_code
+    assert 'omni_format(' in c_code
+    assert '%s' in c_code
 
 
 def test_c_emitter_interpolation_number_slot():
@@ -164,8 +164,8 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "static const char* omni_join" in c_code
-    assert "omni_join(list" in c_code or "omni_join(" in c_code
+    assert 'static const char* omni_join' in c_code
+    assert 'omni_join(list' in c_code or 'omni_join(' in c_code
 
 
 def test_c_emitter_show_formats_by_type():
@@ -201,8 +201,8 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "double total = 1.0;" in c_code
-    assert "total = (total + 2.0);" in c_code
+    assert 'double total = 1.0;' in c_code
+    assert 'total = (total + 2.0);' in c_code
 
 
 def test_c_emitter_sim_system_lowering():
@@ -221,9 +221,9 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "ECS_SYSTEM" in c_code
-    assert "move_system();" in c_code
-    assert "OMNI_HAVE_FLECS" in c_code
+    assert 'ECS_SYSTEM' in c_code
+    assert 'move_system();' in c_code
+    assert 'OMNI_HAVE_FLECS' in c_code
 
 
 def test_c_emitter_flecs_component_registration():
@@ -241,10 +241,10 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "ECS_COMPONENT_DECLARE(Position);" in c_code
-    assert "ECS_COMPONENT_DEFINE(world, Position);" in c_code
-    assert "ecs_new(world);" in c_code
-    assert "ecs_set(world, e_entity_1, Position, {0.0, 0.0});" in c_code
+    assert 'ECS_COMPONENT_DECLARE(Position);' in c_code
+    assert 'ECS_COMPONENT_DEFINE(world, Position);' in c_code
+    assert 'ecs_new(world);' in c_code
+    assert 'ecs_set(world, e_entity_1, Position, {0.0, 0.0});' in c_code
 
 
 def test_c_emitter_expr_coverage():
@@ -282,16 +282,122 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    assert "p.age" in c_code
-    assert "omni_make_list" in c_code
-    assert "NULL" in c_code
-    assert ">=" in c_code
-    assert "greater or equal" not in c_code
+    assert 'p.age' in c_code
+    assert 'omni_make_list' in c_code
+    assert 'NULL' in c_code
+    assert '>=' in c_code
+    assert 'greater or equal' not in c_code
+
+
+def test_c_emitter_group_not_neg():
+    code = """
+fn decide(a: Number) -> Boolean:
+    pure
+    return not (a is 0)
+end
+
+fn flipped(a: Number) -> Number:
+    pure
+    return -a
+end
+"""
+    tokens = tokenize(code)
+    ast = parse(tokens)
+    symbol_table = analyze(ast)
+    mir = to_mir(ast, symbol_table)
+    c_code = emit_c(mir)
+
+    assert 'return (!((a == 0.0)));' in c_code
+    assert 'return (-a);' in c_code
+    assert 'bool decide(double a)' in c_code
+    assert 'double flipped(double a)' in c_code
+
+
+def test_c_emitter_group_in_binary():
+    code = """
+fn scaled(a: Number) -> Number:
+    pure
+    return (a + 1) * 2
+end
+"""
+    tokens = tokenize(code)
+    ast = parse(tokens)
+    symbol_table = analyze(ast)
+    mir = to_mir(ast, symbol_table)
+    c_code = emit_c(mir)
+
+    assert 'return (((a + 1.0)) * 2.0);' in c_code
+
+
+def test_c_emitter_sim_run_lowering():
+    """C-08: sim.run must drive the world loop, not be omitted from main."""
+    code = """
+fn move_system:
+    return none
+end
+
+when app starts:
+    sim.system("move", move_system, "every frame")
+    sim.run(3)
+end
+"""
+    tokens = tokenize(code)
+    ast = parse(tokens)
+    symbol_table = analyze(ast)
+    mir = to_mir(ast, symbol_table)
+    c_code = emit_c(mir)
+
+    assert 'for (int _omni_tick = 0; _omni_tick < 3.0; _omni_tick++)' in c_code
+    assert 'ecs_progress(world, 0);' in c_code
+    assert 'move_system();' in c_code
+    assert 'sim.run(3.0);' not in c_code
+
+
+def test_c_emitter_sim_query_lowering():
+    """C-08: sim.query assigns a compilable empty-list stub, not raw sim.query."""
+    code = """
+when app starts:
+    entities = sim.query("render")
+    n = 0
+    for e in entities:
+        n = n + 1
+    end
+    show n
+end
+"""
+    tokens = tokenize(code)
+    ast = parse(tokens)
+    symbol_table = analyze(ast)
+    mir = to_mir(ast, symbol_table)
+    c_code = emit_c(mir)
+
+    assert 'OmniList entities = omni_make_list((void*[]){}, 0);' in c_code
+    assert 'entities.count' in c_code
+    assert 'sim.query("render")' not in c_code
+
+
+def test_c_emitter_sim_calls_stay_in_source_order():
+    """sim.* stubs must be emitted in entry-point order, not appended at the end."""
+    code = """
+when app starts:
+    entities = sim.query("render")
+    show "after-query"
+end
+"""
+    tokens = tokenize(code)
+    ast = parse(tokens)
+    symbol_table = analyze(ast)
+    mir = to_mir(ast, symbol_table)
+    c_code = emit_c(mir)
+
+    query_pos = c_code.index('OmniList entities')
+    show_pos = c_code.index('printf("%s\\n", ("after-query"))')
+    assert query_pos < show_pos
 
 
 def test_c_emitter_gcc_syntax_check():
-    if shutil.which("gcc") is None:
-        pytest.skip("gcc not available")
+    if shutil.which('gcc') is None:
+        pytest.skip('gcc not available')
 
     code = """
 fn add(a: Number, b: Number) -> Number:
@@ -316,7 +422,7 @@ end
     mir = to_mir(ast, symbol_table)
     c_code = emit_c(mir)
 
-    with tempfile.NamedTemporaryFile(suffix=".c", mode="w", delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix='.c', mode='w', delete=False) as f:
         f.write(c_code)
         c_path = f.name
 
@@ -324,13 +430,13 @@ end
         # flecs.h is missing, so a missing-header error is acceptable; other
         # syntax errors (bad braces, wrong types) are not.
         proc = subprocess.run(
-            ["gcc", "-fsyntax-only", "-DOMNI_HAVE_FLECS", c_path],
+            ['gcc', '-fsyntax-only', '-DOMNI_HAVE_FLECS', c_path],
             capture_output=True,
             text=True,
             timeout=60,
             check=False,
         )
         stderr = proc.stderr
-        assert "flecs.h: No such file" in stderr or "error:" not in stderr
+        assert 'flecs.h: No such file' in stderr or 'error:' not in stderr
     finally:
         Path(c_path).unlink()

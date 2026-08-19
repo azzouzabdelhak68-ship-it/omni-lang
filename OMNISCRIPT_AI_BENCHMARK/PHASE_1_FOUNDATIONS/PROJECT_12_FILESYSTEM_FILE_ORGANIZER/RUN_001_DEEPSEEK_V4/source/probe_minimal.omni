@@ -1,0 +1,11 @@
+import OMNISYS.fs
+
+fn scan_dir(path: Text) -> List:
+    uses filesystem
+    return omnisys.fs.list_dir(path)
+end
+
+when app starts:
+    files = scan_dir(".")
+    show "scanned"
+end

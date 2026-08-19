@@ -7,6 +7,7 @@ Enforces < 50KB gzipped bundle size.
 import gzip
 import sys
 from pathlib import Path
+from typing import Tuple
 
 def check_bundle_size(js_code: str, max_size: int = 51200) -> Tuple[int, bool]:
     """Return (size_in_bytes, passed)"""

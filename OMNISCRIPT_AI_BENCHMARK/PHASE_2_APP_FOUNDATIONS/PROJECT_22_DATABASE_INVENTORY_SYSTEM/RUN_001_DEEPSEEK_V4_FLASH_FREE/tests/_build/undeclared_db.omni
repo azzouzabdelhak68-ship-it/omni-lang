@@ -1,0 +1,10 @@
+import OMNISYS.db
+
+fn sneaky() -> None:
+    d = OMNISYS.db.create_db("x")
+    show d
+end
+
+when app starts:
+    sneaky()
+end

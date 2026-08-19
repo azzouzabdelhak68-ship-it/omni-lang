@@ -1,0 +1,361 @@
+type Character = {
+    name: Text,
+    level: Number,
+    strength: Number,
+    dexterity: Number,
+    intelligence: Number,
+    vitality: Number,
+    max_hp: Number,
+    current_hp: Number,
+    max_mp: Number,
+    current_mp: Number,
+    status_effects: List,
+    experience: Number
+}
+
+type StatusEffect = {
+    name: Text,
+    duration: Number,
+    potency: Number,
+    effect_type: Text
+}
+
+type AttackResult = {
+    hit: Boolean,
+    damage: Number,
+    critical: Boolean,
+    effect_applied: Text
+}
+
+type SpellResult = {
+    success: Boolean,
+    damage: Number,
+    healing: Number,
+    mp_cost: Number,
+    effect_applied: Text
+}
+
+fn calculate_base_damage(attacker_strength: Number, weapon_damage: Number) -> Number:
+    pure
+    return attacker_strength * 0.5 + weapon_damage
+end
+
+fn calculate_hit_probability(attacker_dexterity: Number, target_dexterity: Number) -> Number:
+    pure
+    base_chance = 0.75
+    dex_difference = attacker_dexterity - target_dexterity
+    modifier = dex_difference * 0.02
+    chance = base_chance + modifier
+    if chance > 0.95:
+        return 0.95
+    end
+    if chance < 0.05:
+        return 0.05
+    end
+    return chance
+end
+
+fn calculate_critical_chance(attacker_dexterity: Number, attacker_luck: Number) -> Number:
+    pure
+    base_crit = 0.05
+    dex_bonus = attacker_dexterity * 0.005
+    luck_bonus = attacker_luck * 0.01
+    total = base_crit + dex_bonus + luck_bonus
+    if total > 0.5:
+        return 0.5
+    end
+    return total
+end
+
+fn calculate_stat_modifier(base_stat: Number, equipment_bonus: Number, buff_bonus: Number) -> Number:
+    pure
+    return base_stat + equipment_bonus + buff_bonus
+end
+
+fn calculate_spell_damage(caster_intelligence: Number, spell_power: Number, target_resistance: Number) -> Number:
+    pure
+    raw_damage = caster_intelligence * 0.8 + spell_power
+    mitigated = raw_damage * (1.0 - target_resistance * 0.01)
+    if mitigated < 1:
+        return 1
+    end
+    return mitigated
+end
+
+fn calculate_healing_amount(caster_intelligence: Number, spell_healing: Number) -> Number:
+    pure
+    return caster_intelligence * 0.6 + spell_healing
+end
+
+fn calculate_mana_cost(base_cost: Number, caster_intelligence: Number, level_reduction: Number) -> Number:
+    pure
+    reduction = caster_intelligence * 0.1 + level_reduction
+    final_cost = base_cost - reduction
+    if final_cost < 1:
+        return 1
+    end
+    return final_cost
+end
+
+fn calculate_status_duration(base_duration: Number, caster_intelligence: Number, target_vitality: Number) -> Number:
+    pure
+    bonus = caster_intelligence * 0.2
+    resistance = target_vitality * 0.1
+    duration = base_duration + bonus - resistance
+    if duration < 1:
+        return 1
+    end
+    return duration
+end
+
+fn roll_hit_chance(hit_probability: Number) -> Boolean:
+    pure
+    threshold = hit_probability * 100
+    roll = 50
+    return roll <= threshold
+end
+
+fn roll_critical(crit_chance: Number) -> Boolean:
+    pure
+    threshold = crit_chance * 100
+    roll = 25
+    return roll <= threshold
+end
+
+fn apply_damage_to_hp(current_hp: Number, damage: Number) -> Number:
+    pure
+    new_hp = current_hp - damage
+    if new_hp < 0:
+        return 0
+    end
+    return new_hp
+end
+
+fn apply_healing_to_hp(current_hp: Number, max_hp: Number, healing: Number) -> Number:
+    pure
+    new_hp = current_hp + healing
+    if new_hp > max_hp:
+        return max_hp
+    end
+    return new_hp
+end
+
+fn apply_mana_cost(current_mp: Number, mp_cost: Number) -> Number:
+    pure
+    new_mp = current_mp - mp_cost
+    if new_mp < 0:
+        return 0
+    end
+    return new_mp
+end
+
+fn create_character(name: Text, level: Number, strength: Number, dexterity: Number, intelligence: Number, vitality: Number) -> Character:
+    pure
+    max_hp = vitality * 10 + level * 5
+    max_mp = intelligence * 5 + level * 3
+    return Character(
+        name = name,
+        level = level,
+        strength = strength,
+        dexterity = dexterity,
+        intelligence = intelligence,
+        vitality = vitality,
+        max_hp = max_hp,
+        current_hp = max_hp,
+        max_mp = max_mp,
+        current_mp = max_mp,
+        status_effects = List(),
+        experience = 0
+    )
+end
+
+fn save_character(character: Character) -> Text:
+    uses filesystem
+    filename = "saves/{character.name}.dat"
+    data = "{character.name}|{character.level}|{character.current_hp}|{character.current_mp}|{character.experience}"
+    write_file(filename, data)
+    return "Character {character.name} saved to {filename}"
+end
+
+fn load_character(name: Text) -> Character:
+    uses filesystem
+    filename = "saves/{name}.dat"
+    data = read_file(filename)
+    loaded_name = "Hero"
+    loaded_level = 1
+    loaded_hp = 100
+    loaded_mp = 50
+    loaded_exp = 0
+    return Character(
+        name = loaded_name,
+        level = loaded_level,
+        strength = 10,
+        dexterity = 10,
+        intelligence = 10,
+        vitality = 10,
+        max_hp = loaded_level * 15,
+        current_hp = loaded_hp,
+        max_mp = loaded_level * 8,
+        current_mp = loaded_mp,
+        status_effects = List(),
+        experience = loaded_exp
+    )
+end
+
+fn attack(attacker: Character, target: Character, weapon_damage: Number) -> AttackResult:
+    writes attacker
+    writes target
+    hit_prob = calculate_hit_probability(attacker.dexterity, target.dexterity)
+    hit = roll_hit_chance(hit_prob)
+    
+    if not hit:
+        return AttackResult(hit = false, damage = 0, critical = false, effect_applied = "miss")
+    end
+    
+    base_dmg = calculate_base_damage(attacker.strength, weapon_damage)
+    crit_chance = calculate_critical_chance(attacker.dexterity, 10)
+    is_crit = roll_critical(crit_chance)
+    
+    final_damage = base_damage
+    if is_crit:
+        final_damage = base_damage * 2
+    end
+    
+    new_hp = apply_damage_to_hp(target.current_hp, final_damage)
+    target.current_hp = new_hp
+    
+    effect_text = "hit"
+    if is_crit:
+        effect_text = "critical"
+    end
+    
+    return AttackResult(hit = true, damage = final_damage, critical = is_crit, effect_applied = effect_text)
+end
+
+fn cast_damage_spell(caster: Character, target: Character, spell_power: Number, base_mana_cost: Number, spell_name: Text) -> SpellResult:
+    writes caster
+    writes target
+    mp_cost = calculate_mana_cost(base_mana_cost, caster.intelligence, caster.level * 0.5)
+    
+    if caster.current_mp < mp_cost:
+        return SpellResult(success = false, damage = 0, healing = 0, mp_cost = 0, effect_applied = "insufficient_mana")
+    end
+    
+    damage = calculate_spell_damage(caster.intelligence, spell_power, target.vitality * 0.5)
+    new_hp = apply_damage_to_hp(target.current_hp, damage)
+    target.current_hp = new_hp
+    caster.current_mp = apply_mana_cost(caster.current_mp, mp_cost)
+    
+    return SpellResult(success = true, damage = damage, healing = 0, mp_cost = mp_cost, effect_applied = spell_name)
+end
+
+fn cast_healing_spell(caster: Character, target: Character, spell_healing: Number, base_mana_cost: Number, spell_name: Text) -> SpellResult:
+    writes caster
+    writes target
+    mp_cost = calculate_mana_cost(base_mana_cost, caster.intelligence, caster.level * 0.5)
+    
+    if caster.current_mp < mp_cost:
+        return SpellResult(success = false, damage = 0, healing = 0, mp_cost = 0, effect_applied = "insufficient_mana")
+    end
+    
+    healing = calculate_healing_amount(caster.intelligence, spell_healing)
+    new_hp = apply_healing_to_hp(target.current_hp, target.max_hp, healing)
+    target.current_hp = new_hp
+    caster.current_mp = apply_mana_cost(caster.current_mp, mp_cost)
+    
+    return SpellResult(success = true, damage = 0, healing = healing, mp_cost = mp_cost, effect_applied = spell_name)
+end
+
+fn apply_status_effect(target: Character, effect_name: Text, base_duration: Number, potency: Number, effect_type: Text, caster_intelligence: Number) -> Text:
+    writes target
+    duration = calculate_status_duration(base_duration, caster_intelligence, target.vitality)
+    new_effect = StatusEffect(name = effect_name, duration = duration, potency = potency, effect_type = effect_type)
+    target.status_effects = append(target.status_effects, new_effect)
+    return "Applied {effect_name} to {target.name} for {duration} turns"
+end
+
+fn process_status_effects(character: Character) -> Character:
+    writes character
+    updated_effects = List()
+    for effect in character.status_effects:
+        new_duration = effect.duration - 1
+        if new_duration > 0:
+            updated_effect = StatusEffect(
+                name: effect.name,
+                duration: new_duration,
+                potency: effect.potency,
+                effect_type: effect.type
+            )
+            updated_effects = append(updated_effects, updated_effect)
+        end
+    end
+    character.status_effects = updated_effects
+    return character
+end
+
+fn gain_experience(character: Character, amount: Number) -> Text:
+    writes character
+    character.experience = character.experience + amount
+    exp_for_next = character.level * 100
+    if character.experience >= exp_for_next:
+        character.level = character.level + 1
+        character.max_hp = character.max_hp + 10
+        character.current_hp = character.max_hp
+        character.max_mp = character.max_mp + 5
+        character.current_mp = character.max_mp
+        return "{character.name} leveled up to level {character.level}!"
+    end
+    return "{character.name} gained {amount} experience."
+end
+
+fn is_alive(character: Character) -> Boolean:
+    pure
+    return character.current_hp > 0
+end
+
+fn get_hp_percentage(character: Character) -> Number:
+    pure
+    if character.max_hp == 0:
+        return 0
+    end
+    return (character.current_hp / character.max_hp) * 100
+end
+
+fn get_mp_percentage(character: Character) -> Number:
+    pure
+    if character.max_mp == 0:
+        return 0
+    end
+    return (character.current_mp / character.max_mp) * 100
+end
+
+when app starts:
+    hero = create_character("Hero", 1, 15, 12, 10, 14)
+    enemy = create_character("Goblin", 1, 10, 8, 5, 10)
+    
+    show "Hero created: {hero.name} (HP: {hero.current_hp}/{hero.max_hp}, MP: {hero.current_mp}/{hero.max_mp})"
+    show "Enemy created: {enemy.name} (HP: {enemy.current_hp}/{enemy.max_hp})"
+    
+    result = attack(hero, enemy, 8)
+    show "Attack result: {result.effect_applied}, Damage: {result.damage}, Critical: {result.critical}"
+    show "Enemy HP: {enemy.current_hp}/{enemy.max_hp}"
+    
+    spell_result = cast_damage_spell(hero, enemy, 20, 10, "Fireball")
+    show "Spell result: {spell_result.effect_applied}, Damage: {spell_result.damage}, MP Cost: {spell_result.mp_cost}"
+    show "Hero MP: {hero.current_mp}/{hero.max_mp}, Enemy HP: {enemy.current_hp}/{enemy.max_hp}"
+    
+    heal_result = cast_healing_spell(hero, hero, 15, 8, "Heal")
+    show "Heal result: {heal_result.effect_applied}, Healing: {heal_result.healing}, MP Cost: {heal_result.mp_cost}"
+    show "Hero HP: {hero.current_hp}/{hero.max_hp}, Hero MP: {hero.current_mp}/{hero.max_mp}"
+    
+    status_msg = apply_status_effect(enemy, "Poison", 3, 5, "damage_over_time", hero.intelligence)
+    show status_msg
+    show "Enemy status effects: {enemy.status_effects}"
+    
+    exp_msg = gain_experience(hero, 150)
+    show exp_msg
+    show "Hero level: {hero.level}, HP: {hero.current_hp}/{hero.max_hp}, MP: {hero.current_mp}/{hero.max_mp}"
+    
+    save_msg = save_character(hero)
+    show save_msg
+end

@@ -1,0 +1,3 @@
+when app starts:
+    show 42
+end

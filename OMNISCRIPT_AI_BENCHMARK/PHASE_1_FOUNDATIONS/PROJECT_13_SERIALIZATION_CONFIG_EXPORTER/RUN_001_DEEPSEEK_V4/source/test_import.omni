@@ -1,0 +1,6 @@
+import OMNISYS.serde
+import OMNISYS.fs
+
+when app starts:
+    show "test"
+end

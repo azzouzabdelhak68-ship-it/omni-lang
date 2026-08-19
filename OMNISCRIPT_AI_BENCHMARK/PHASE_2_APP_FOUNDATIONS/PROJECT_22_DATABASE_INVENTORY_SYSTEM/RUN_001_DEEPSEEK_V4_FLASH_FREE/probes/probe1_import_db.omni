@@ -1,0 +1,18 @@
+import OMNISYS.db
+
+fn make_db() -> None:
+    uses database
+    d = OMNISYS.db.create_db("inv")
+    t = OMNISYS.db.create_table(d, "items", ItemSchema(name="Text", stock="Number"))
+    OMNISYS.db.insert(t, ItemRow(name="bolt", stock=5))
+    rows = OMNISYS.db.select(t)
+    show rows
+end
+
+type ItemSchema = { name: Text, stock: Text }
+type ItemRow = { name: Text, stock: Number }
+
+when app starts:
+    make_db()
+    show "done"
+end

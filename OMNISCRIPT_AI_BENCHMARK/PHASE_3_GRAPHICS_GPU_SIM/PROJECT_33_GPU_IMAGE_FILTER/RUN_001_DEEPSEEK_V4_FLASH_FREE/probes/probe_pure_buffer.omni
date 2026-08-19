@@ -1,0 +1,12 @@
+import OMNISYS.gpu
+import OMNISYS.collections
+
+fn make_buffer(data: List) -> List:
+    pure
+    buf = omnisys.gpu.buffer(data)
+    return omnisys.collections.map_get(buf, "data")
+end
+
+when app starts:
+    show omnisys.collections.list_join(make_buffer([1, 2, 3]), ",")
+end

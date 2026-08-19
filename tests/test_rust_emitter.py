@@ -35,9 +35,9 @@ end
 """
     rust = _emit(code)
 
-    assert "fn add(a: f64, b: f64) -> f64 {" in rust
-    assert "return a + b;" in rust
-    assert "fn main() {" in rust
+    assert 'fn add(a: f64, b: f64) -> f64 {' in rust
+    assert 'return a + b;' in rust
+    assert 'fn main() {' in rust
 
 
 def test_rust_emitter_custom_types():
@@ -51,10 +51,10 @@ end
 """
     rust = _emit(code)
 
-    assert "struct Person {" in rust
-    assert "name: String," in rust
-    assert "age: f64," in rust
-    assert "p.name" in rust
+    assert 'struct Person {' in rust
+    assert 'name: String,' in rust
+    assert 'age: f64,' in rust
+    assert 'p.name' in rust
 
 
 def test_rust_emitter_loops_and_conditionals():
@@ -75,10 +75,10 @@ end
 """
     rust = _emit(code)
 
-    assert "fn sum_all(items: Vec<f64>) -> f64 {" in rust
-    assert "for x in &items {" in rust
-    assert "continue;" in rust
-    assert "break;" in rust
+    assert 'fn sum_all(items: Vec<f64>) -> f64 {' in rust
+    assert 'for x in &items {' in rust
+    assert 'continue;' in rust
+    assert 'break;' in rust
 
 
 def test_rust_emitter_interpolation_and_join():
@@ -89,8 +89,8 @@ end
 """
     rust = _emit(code)
 
-    assert "fn omni_join(list: Vec<String>, sep: &str) -> String" in rust
-    assert "omni_join(" in rust
+    assert 'fn omni_join(list: Vec<String>, sep: &str) -> String' in rust
+    assert 'omni_join(' in rust
 
 
 def test_rust_emitter_interpolation_format():
@@ -101,9 +101,9 @@ end
 """
     rust = _emit(code)
 
-    assert "format!" in rust
-    assert "Hello {}" in rust
-    assert "name" in rust
+    assert 'format!' in rust
+    assert 'Hello {}' in rust
+    assert 'name' in rust
 
 
 def test_rust_emitter_bevy_adapter():
@@ -117,9 +117,9 @@ end
 """
     rust = _emit(code)
 
-    assert "#[derive(Component, Clone, Debug)]" in rust
-    assert "fn setup(mut commands: Commands)" in rust
-    assert "commands.spawn((" in rust
+    assert '#[derive(Component, Clone, Debug)]' in rust
+    assert 'fn setup(mut commands: Commands)' in rust
+    assert 'commands.spawn((' in rust
     assert 'insert(Name::new("player"))' in rust
 
 
@@ -137,7 +137,7 @@ end
 """
     rust = _emit(code)
 
-    assert "// sim.system move_system -> Bevy Update system" in rust
+    assert '// sim.system move_system -> Bevy Update system' in rust
 
 
 def test_rust_emitter_for_each_query():
@@ -151,7 +151,53 @@ end
 """
     rust = _emit(code)
 
-    assert "// sim.for_each -> Bevy Query" in rust
+    assert '// sim.for_each -> Bevy Query' in rust
+
+
+def test_rust_emitter_sim_run_query_comments():
+    """C-08: sim.run/sim.query must lower, not emit raw uncompilable sim.* calls."""
+    code = """
+fn move_system:
+    return none
+end
+
+when app starts:
+    sim.system("move", move_system, "every frame")
+    sim.run(3)
+    entities = sim.query("render")
+    show "done"
+end
+"""
+    rust = _emit(code)
+
+    assert '// sim.run 3.0 -> Bevy run 3.0 frames' in rust
+    assert 'let mut entities: Vec<f64> = Vec::new(); // sim.query "render" -> Bevy Query' in rust
+    assert 'sim.run(3.0)' not in rust
+    assert 'sim.query(String::from("render"))' not in rust
+
+
+def test_rust_emitter_group_not_neg():
+    code = """
+fn decide(a: Number) -> Boolean:
+    pure
+    return not (a is 0)
+end
+
+fn flipped(a: Number) -> Number:
+    pure
+    return -a
+end
+
+fn scaled(a: Number) -> Number:
+    pure
+    return (a + 1) * 2
+end
+"""
+    rust = _emit(code)
+
+    assert 'return (!(a == 0.0));' in rust
+    assert 'return (-a);' in rust
+    assert 'return (a + 1.0) * 2.0;' in rust
 
 
 def test_rust_emitter_runtime_alias():
@@ -169,8 +215,8 @@ end
 
 
 def test_rust_emitter_cargo_check():
-    if shutil.which("cargo") is None:
-        pytest.skip("cargo not available")
+    if shutil.which('cargo') is None:
+        pytest.skip('cargo not available')
 
     code = """
 fn add(a: Number, b: Number) -> Number:
@@ -186,18 +232,18 @@ end
     rust = _emit(code)
 
     with tempfile.TemporaryDirectory() as tmp:
-        cargo_toml = Path(tmp) / "Cargo.toml"
+        cargo_toml = Path(tmp) / 'Cargo.toml'
         cargo_toml.write_text(
             '[package]\nname = "omni_probe"\nversion = "0.1.0"\n'
             'edition = "2021"\n\n[dependencies]\n',
-            encoding="utf-8",
+            encoding='utf-8',
         )
-        src = Path(tmp) / "src"
+        src = Path(tmp) / 'src'
         src.mkdir()
-        (src / "main.rs").write_text(rust, encoding="utf-8")
+        (src / 'main.rs').write_text(rust, encoding='utf-8')
 
         proc = subprocess.run(
-            ["cargo", "check"],
+            ['cargo', 'check'],
             capture_output=True,
             text=True,
             timeout=120,

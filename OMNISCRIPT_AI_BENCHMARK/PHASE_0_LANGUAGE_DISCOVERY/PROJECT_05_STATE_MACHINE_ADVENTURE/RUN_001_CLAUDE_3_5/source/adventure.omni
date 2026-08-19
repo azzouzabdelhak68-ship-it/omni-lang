@@ -1,0 +1,491 @@
+type Room = {
+    id: Text,
+    name: Text,
+    description: Text,
+    locked: Boolean,
+    required_key: Text,
+    connections: List,
+    items: List
+}
+
+type Item = {
+    id: Text,
+    name: Text,
+    description: Text,
+    is_key: Boolean,
+    unlocks_room: Text
+}
+
+current_room_id = "entrance"
+inventory = []
+rooms_visited = ["entrance"]
+moves_count = 0
+items_collected = 0
+game_won = false
+
+locked_chamber = true
+locked_dungeon = true
+
+entrance_has_torch = true
+chamber_has_crown = true
+armory_has_golden_key = true
+armory_has_sword = true
+dungeon_has_iron_key = true
+dungeon_has_map = true
+
+fn find_room(room_id: Text) -> Room:
+    pure
+    reads rooms
+
+    if room_id is "entrance":
+        return Room(id="entrance", name="Cave Entrance", description="A damp cave entrance. Cold air flows from within.", locked=false, required_key="", connections=["hallway"], items=["torch"])
+    end
+    if room_id is "hallway":
+        return Room(id="hallway", name="Stone Hallway", description="A narrow hallway with ancient carvings on the walls.", locked=false, required_key="", connections=["entrance", "chamber", "armory"], items=[])
+    end
+    if room_id is "chamber":
+        return Room(id="chamber", name="Treasure Chamber", description="A glittering chamber filled with gold and artifacts. The prize awaits!", locked=true, required_key="golden_key", connections=["hallway"], items=["crown"])
+    end
+    if room_id is "armory":
+        return Room(id="armory", name="Old Armory", description="Rusted weapons line the walls. A key glints on a pedestal.", locked=false, required_key="", connections=["hallway", "dungeon"], items=["golden_key", "sword"])
+    end
+    if room_id is "dungeon":
+        return Room(id="dungeon", name="Dark Dungeon", description="A foul-smelling dungeon. A skeleton holds a map.", locked=true, required_key="iron_key", connections=["armory"], items=["iron_key", "map"])
+    end
+    return Room(id="", name="", description="", locked=false, required_key="", connections=[], items=[])
+end
+
+fn find_item(item_id: Text) -> Item:
+    pure
+    reads items_db
+
+    if item_id is "torch":
+        return Item(id="torch", name="Torch", description="A wooden torch, unlit.", is_key=false, unlocks_room="")
+    end
+    if item_id is "golden_key":
+        return Item(id="golden_key", name="Golden Key", description="An ornate golden key.", is_key=true, unlocks_room="chamber")
+    end
+    if item_id is "sword":
+        return Item(id="sword", name="Rusty Sword", description="An old but sturdy blade.", is_key=false, unlocks_room="")
+    end
+    if item_id is "iron_key":
+        return Item(id="iron_key", name="Iron Key", description="A heavy iron key.", is_key=true, unlocks_room="dungeon")
+    end
+    if item_id is "crown":
+        return Item(id="crown", name="Golden Crown", description="The crown of the ancient king. You win!", is_key=false, unlocks_room="")
+    end
+    if item_id is "map":
+        return Item(id="map", name="Dungeon Map", description="A map showing secret passages.", is_key=false, unlocks_room="")
+    end
+    return Item(id="", name="", description="", is_key=false, unlocks_room="")
+end
+
+fn has_item(item_id: Text) -> Boolean:
+    pure
+    reads inventory
+    for inv_item in inventory:
+        if inv_item.id is item_id:
+            return true
+        end
+    end
+    return false
+end
+
+fn room_has_item(room_id: Text, item_id: Text) -> Boolean:
+    pure
+    reads entrance_has_torch
+    reads chamber_has_crown
+    reads armory_has_golden_key
+    reads armory_has_sword
+    reads dungeon_has_iron_key
+    reads dungeon_has_map
+
+    if room_id is "entrance" and item_id is "torch":
+        return entrance_has_torch
+    end
+    if room_id is "chamber" and item_id is "crown":
+        return chamber_has_crown
+    end
+    if room_id is "armory" and item_id is "golden_key":
+        return armory_has_golden_key
+    end
+    if room_id is "armory" and item_id is "sword":
+        return armory_has_sword
+    end
+    if room_id is "dungeon" and item_id is "iron_key":
+        return dungeon_has_iron_key
+    end
+    if room_id is "dungeon" and item_id is "map":
+        return dungeon_has_map
+    end
+    return false
+end
+
+fn remove_room_item(room_id: Text, item_id: Text) -> None:
+    writes entrance_has_torch
+    writes chamber_has_crown
+    writes armory_has_golden_key
+    writes armory_has_sword
+    writes dungeon_has_iron_key
+    writes dungeon_has_map
+
+    if room_id is "entrance" and item_id is "torch":
+        entrance_has_torch = false
+    end
+    if room_id is "chamber" and item_id is "crown":
+        chamber_has_crown = false
+    end
+    if room_id is "armory" and item_id is "golden_key":
+        armory_has_golden_key = false
+    end
+    if room_id is "armory" and item_id is "sword":
+        armory_has_sword = false
+    end
+    if room_id is "dungeon" and item_id is "iron_key":
+        dungeon_has_iron_key = false
+    end
+    if room_id is "dungeon" and item_id is "map":
+        dungeon_has_map = false
+    end
+end
+
+fn is_room_locked(room_id: Text) -> Boolean:
+    pure
+    reads locked_chamber
+    reads locked_dungeon
+
+    if room_id is "chamber":
+        return locked_chamber
+    end
+    if room_id is "dungeon":
+        return locked_dungeon
+    end
+    return false
+end
+
+fn unlock_room(room_id: Text) -> None:
+    writes locked_chamber
+    writes locked_dungeon
+
+    if room_id is "chamber":
+        locked_chamber = false
+    end
+    if room_id is "dungeon":
+        locked_dungeon = false
+    end
+end
+
+fn room_connected(room: Room, target_id: Text) -> Boolean:
+    pure
+    for conn in room.connections:
+        if conn is target_id:
+            return true
+        end
+    end
+    return false
+end
+
+fn move_to(target_room_id: Text) -> Boolean:
+    require target_room_id is not ""
+    writes current_room_id
+    writes rooms_visited
+    writes moves_count
+    reads inventory
+    reads locked_chamber
+    reads locked_dungeon
+    reads rooms
+
+    current = find_room(current_room_id)
+    target = find_room(target_room_id)
+
+    if not room_connected(current, target_room_id):
+        show "You cannot go that way from here."
+        return false
+    end
+
+    if is_room_locked(target_room_id):
+        required_key = target.required_key
+        if not has_item(required_key):
+            show "The door to " + target.name + " is locked. You need the " + required_key + "."
+            return false
+        else:
+            show "You unlock the door with the " + required_key + "."
+            unlock_room(target_room_id)
+        end
+    end
+
+    current_room_id = target_room_id
+    moves_count = moves_count + 1
+
+    visited = false
+    for v in rooms_visited:
+        if v is target_room_id:
+            visited = true
+        end
+    end
+    if not visited:
+        rooms_visited = rooms_visited + [target_room_id]
+    end
+
+    show "You enter the " + target.name + "."
+    show target.description
+    return true
+end
+
+fn take_item(item_id: Text) -> Boolean:
+    require item_id is not ""
+    writes inventory
+    writes items_collected
+    reads current_room_id
+    reads entrance_has_torch
+    reads chamber_has_crown
+    reads armory_has_golden_key
+    reads armory_has_sword
+    reads dungeon_has_iron_key
+    reads dungeon_has_map
+    reads items_db
+
+    current = find_room(current_room_id)
+
+    if not room_has_item(current_room_id, item_id):
+        show "There is no " + item_id + " here."
+        return false
+    end
+
+    item = find_item(item_id)
+    inventory = inventory + [item]
+    items_collected = items_collected + 1
+
+    remove_room_item(current_room_id, item_id)
+
+    show "You pick up the " + item.name + "."
+    return true
+end
+
+fn use_item(item_id: Text) -> Boolean:
+    require item_id is not ""
+    reads inventory
+    reads current_room_id
+    reads locked_chamber
+    reads locked_dungeon
+    reads rooms
+
+    if not has_item(item_id):
+        show "You don't have the " + item_id + "."
+        return false
+    end
+
+    item = find_item(item_id)
+
+    if item.is_key:
+        current = find_room(current_room_id)
+        if is_room_locked(current_room_id) and current.required_key is item_id:
+            unlock_room(current_room_id)
+            show "You unlock the " + current.name + " with the " + item.name + "."
+            return true
+        else:
+            show "The " + item.name + " doesn't fit any lock here."
+            return false
+        end
+    else:
+        show "You examine the " + item.name + ". " + item.description
+        return true
+    end
+end
+
+fn check_win() -> Boolean:
+    pure
+    reads inventory
+
+    if has_item("crown"):
+        return true
+    end
+    return false
+end
+
+fn show_status() -> None:
+    pure
+    reads current_room_id
+    reads inventory
+    reads moves_count
+    reads items_collected
+    reads rooms_visited
+    reads rooms
+
+    current = find_room(current_room_id)
+    show "=== Status ==="
+    show "Location: " + current.name
+    show "Moves: " + moves_count
+    show "Items: " + items_collected
+    show "Rooms Visited: " + join(rooms_visited, ", ")
+    inv_names = []
+    for i in inventory:
+        inv_names = inv_names + [i.name]
+    end
+    show "Inventory: " + join(inv_names, ", ")
+    show "=============="
+end
+
+fn look() -> None:
+    pure
+    reads current_room_id
+    reads entrance_has_torch
+    reads chamber_has_crown
+    reads armory_has_golden_key
+    reads armory_has_sword
+    reads dungeon_has_iron_key
+    reads dungeon_has_map
+    reads rooms
+
+    current = find_room(current_room_id)
+    show current.name
+    show current.description
+    
+    if current_room_id is "entrance" and entrance_has_torch:
+        show "Items here: Torch"
+    end
+    if current_room_id is "chamber" and chamber_has_crown:
+        show "Items here: Golden Crown"
+    end
+    if current_room_id is "armory":
+        items_here = []
+        if armory_has_golden_key:
+            items_here = items_here + ["Golden Key"]
+        end
+        if armory_has_sword:
+            items_here = items_here + ["Rusty Sword"]
+        end
+        if len(items_here) greater than 0:
+            show "Items here: " + join(items_here, ", ")
+        end
+    end
+    if current_room_id is "dungeon":
+        items_here = []
+        if dungeon_has_iron_key:
+            items_here = items_here + ["Iron Key"]
+        end
+        if dungeon_has_map:
+            items_here = items_here + ["Dungeon Map"]
+        end
+        if len(items_here) greater than 0:
+            show "Items here: " + join(items_here, ", ")
+        end
+    end
+    
+    conn_names = []
+    for c in current.connections:
+        conn_names = conn_names + [find_room(c).name]
+    end
+    show "Exits: " + join(conn_names, ", ")
+end
+
+when app starts:
+    rooms = [
+        Room(
+            id="entrance",
+            name="Cave Entrance",
+            description="A damp cave entrance. Cold air flows from within.",
+            locked=false,
+            required_key="",
+            connections=["hallway"],
+            items=["torch"]
+        ),
+        Room(
+            id="hallway",
+            name="Stone Hallway",
+            description="A narrow hallway with ancient carvings on the walls.",
+            locked=false,
+            required_key="",
+            connections=["entrance", "chamber", "armory"],
+            items=[]
+        ),
+        Room(
+            id="chamber",
+            name="Treasure Chamber",
+            description="A glittering chamber filled with gold and artifacts. The prize awaits!",
+            locked=true,
+            required_key="golden_key",
+            connections=["hallway"],
+            items=["crown"]
+        ),
+        Room(
+            id="armory",
+            name="Old Armory",
+            description="Rusted weapons line the walls. A key glints on a pedestal.",
+            locked=false,
+            required_key="",
+            connections=["hallway", "dungeon"],
+            items=["golden_key", "sword"]
+        ),
+        Room(
+            id="dungeon",
+            name="Dark Dungeon",
+            description="A foul-smelling dungeon. A skeleton holds a map.",
+            locked=true,
+            required_key="iron_key",
+            connections=["armory"],
+            items=["iron_key", "map"]
+        )
+    ]
+
+    items_db = [
+        Item(
+            id="torch",
+            name="Torch",
+            description="A wooden torch, unlit.",
+            is_key=false,
+            unlocks_room=""
+        ),
+        Item(
+            id="golden_key",
+            name="Golden Key",
+            description="An ornate golden key.",
+            is_key=true,
+            unlocks_room="chamber"
+        ),
+        Item(
+            id="sword",
+            name="Rusty Sword",
+            description="An old but sturdy blade.",
+            is_key=false,
+            unlocks_room=""
+        ),
+        Item(
+            id="iron_key",
+            name="Iron Key",
+            description="A heavy iron key.",
+            is_key=true,
+            unlocks_room="dungeon"
+        ),
+        Item(
+            id="crown",
+            name="Golden Crown",
+            description="The crown of the ancient king. You win!",
+            is_key=false,
+            unlocks_room=""
+        ),
+        Item(
+            id="map",
+            name="Dungeon Map",
+            description="A map showing secret passages.",
+            is_key=false,
+            unlocks_room=""
+        )
+    ]
+
+    show "Welcome to the State-Machine Adventure!"
+    show "Commands: move <room>, take <item>, use <item>, look, status, win"
+    show ""
+    look()
+    show_status()
+end
+
+UI:
+<h1>State-Machine Adventure Engine</h1>
+<div id="output"></div>
+<script>
+  // Demo interactions
+  console.log("Adventure engine loaded");
+  console.log("Try: move('hallway'), take('torch'), move('armory'), take('golden_key'), move('chamber')");
+</script>
+end

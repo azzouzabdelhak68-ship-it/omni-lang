@@ -1,0 +1,5 @@
+# Test without type declarations
+
+when app starts:
+    show "hello"
+end

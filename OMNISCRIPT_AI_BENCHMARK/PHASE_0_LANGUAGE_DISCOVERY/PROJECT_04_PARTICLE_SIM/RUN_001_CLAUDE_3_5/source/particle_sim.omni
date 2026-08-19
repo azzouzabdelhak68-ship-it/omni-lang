@@ -1,0 +1,54 @@
+import OMNISYS.sim
+
+type Position = { x: Number, y: Number }
+type Velocity = { x: Number, y: Number }
+type Render = { color: Text }
+
+fn motion_system() -> None:
+    reads dt p1_pos p2_pos p3_pos p4_pos p5_pos p1_vel p2_vel p3_vel p4_vel p5_vel
+    writes p1_pos p2_pos p3_pos p4_pos p5_pos
+    p1_pos = Position(x = p1_pos.x + p1_vel.x * dt, y = p1_pos.y + p1_vel.y * dt)
+    p2_pos = Position(x = p2_pos.x + p2_vel.x * dt, y = p2_pos.y + p2_vel.y * dt)
+    p3_pos = Position(x = p3_pos.x + p3_vel.x * dt, y = p3_pos.y + p3_vel.y * dt)
+    p4_pos = Position(x = p4_pos.x + p4_vel.x * dt, y = p4_pos.y + p4_vel.y * dt)
+    p5_pos = Position(x = p5_pos.x + p5_vel.x * dt, y = p5_pos.y + p5_vel.y * dt)
+end
+
+when app starts:
+    dt = 0.1
+    
+    p1_pos = Position(x = 0.0, y = 0.0)
+    p1_vel = Velocity(x = 10.0, y = 5.0)
+    p1_rend = Render(color = "#ff0000")
+    sim.entity("particle1", [p1_pos, p1_vel, p1_rend])
+    
+    p2_pos = Position(x = 5.0, y = 5.0)
+    p2_vel = Velocity(x = -3.0, y = 2.0)
+    p2_rend = Render(color = "#00ff00")
+    sim.entity("particle2", [p2_pos, p2_vel, p2_rend])
+    
+    p3_pos = Position(x = -2.0, y = 3.0)
+    p3_vel = Velocity(x = 1.0, y = -4.0)
+    p3_rend = Render(color = "#0000ff")
+    sim.entity("particle3", [p3_pos, p3_vel, p3_rend])
+    
+    p4_pos = Position(x = 10.0, y = -2.0)
+    p4_vel = Velocity(x = -1.0, y = -1.0)
+    p4_rend = Render(color = "#ffff00")
+    sim.entity("particle4", [p4_pos, p4_vel, p4_rend])
+    
+    p5_pos = Position(x = -5.0, y = -5.0)
+    p5_vel = Velocity(x = 2.0, y = 3.0)
+    p5_rend = Render(color = "#ff00ff")
+    sim.entity("particle5", [p5_pos, p5_vel, p5_rend])
+    
+    sim.system("motion", motion_system, "every frame")
+    
+    sim.run(20)
+    
+    entities = sim.query("Render")
+    for e in entities:
+        pos = sim.get(e, "Position")
+        show "Entity {e}: ({pos.x}, {pos.y})"
+    end
+end

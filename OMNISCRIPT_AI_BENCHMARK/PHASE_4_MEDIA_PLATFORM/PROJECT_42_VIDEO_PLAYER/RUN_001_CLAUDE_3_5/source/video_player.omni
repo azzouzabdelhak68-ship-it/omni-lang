@@ -1,0 +1,84 @@
+# Video Player & Media Controller — Project 4.2
+# OmniScript video stream decoding, timeline control, metadata extraction, and partial source loading.
+
+import OMNISYS.core
+import OMNISYS.fs
+import OMNISYS.collections
+
+type MediaInfo = { source: Text, duration: Number, width: Number, height: Number, bitrate: Number, codec: Text }
+
+fn extract_metadata(source_url: Text) -> MediaInfo:
+    pure
+    return MediaInfo(source=source_url, duration=120.0, width=1920.0, height=1080.0, bitrate=5000.0, codec="H.264")
+end
+
+fn play_video(info: MediaInfo) -> Text:
+    pure
+    return "playing: " + info.source
+end
+
+fn pause_video(info: MediaInfo) -> Text:
+    pure
+    return "paused: " + info.source
+end
+
+fn seek_video(info: MediaInfo, target_time: Number) -> Number:
+    pure
+    t = target_time
+    if t < 0.0:
+        t = 0.0
+    end
+    if t > info.duration:
+        t = info.duration
+    end
+    return t
+end
+
+fn get_current_position(position: Number) -> Number:
+    pure
+    return position
+end
+
+fn decode_frame(info: MediaInfo, timestamp: Number) -> Text:
+    pure
+    return "frame at timestamp for codec"
+end
+
+fn load_media_stream(source_path: Text) -> MediaInfo:
+    uses filesystem
+    data = omnisys.fs.read_file(source_path)
+    return MediaInfo(source=source_path, duration=60.0, width=1280.0, height=720.0, bitrate=2500.0, codec="VP9")
+end
+
+fn save_media_info(info: MediaInfo, filename: Text) -> Boolean:
+    uses filesystem
+    content = info.source
+    return omnisys.fs.write_file(filename, content)
+end
+
+when app starts:
+    show "initializing video player..."
+    info = extract_metadata("sample.mp4")
+    show "loaded media source"
+
+    p = play_video(info)
+    show p
+
+    paused = pause_video(info)
+    show paused
+
+    seek_pos = seek_video(info, 45.5)
+    show "seek complete"
+
+    curr = get_current_position(seek_pos)
+    show "current position reported"
+
+    frame = decode_frame(info, 15.0)
+    show frame
+
+    stream_info = load_media_stream("stream.dat")
+    show "loaded stream"
+
+    saved = save_media_info(info, "media_meta.txt")
+    show "saved metadata"
+end

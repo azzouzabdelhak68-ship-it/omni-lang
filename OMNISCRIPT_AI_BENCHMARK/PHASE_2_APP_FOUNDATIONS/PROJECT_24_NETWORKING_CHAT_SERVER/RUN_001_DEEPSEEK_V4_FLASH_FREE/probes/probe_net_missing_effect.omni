@@ -1,0 +1,7 @@
+# Negative probe: net call without declared capability -> expect E-EFFECT-003.
+import OMNISYS.net
+
+fn fetch() -> Number:
+    response_value = omnisys.net.get("inproc://test/x")
+    return 0
+end

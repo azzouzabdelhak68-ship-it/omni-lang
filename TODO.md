@@ -3,7 +3,7 @@
 > **Session Continuity Protocol**: Every agent starting a new session MUST read this file first. When finishing a session, the agent MUST update the phase checkboxes, write a brief summary in the "Last Session Status Note", and ensure all Quality Gates pass.
 
 ## Current Phase
-- **v6 COMPLETE** (all 5 phases + advanced escapes) — see Last Session Status Note below. `omnisys-async` advanced escape (distributed actors + clustering) finished. Next: v7 (AI benchmark phases).
+- **v6 Phase 7 COMPLETE** (Emitter Correctness & Codegen, all 6 items), **v6 Phase 8 COMPLETE** (Platform Parity & Backend Conformance, all 5 items), and **v6 Phase 9 COMPLETE** (SMT Verification Expansion, all 3 items) — see Last Session Status Note below. Next: v6 Phase 10 (OMNISYS API & Runtime Completion) or v7 Phase 5 remaining projects.
 
 ## Sub-Agent Delegation Protocol
 
@@ -21,11 +21,12 @@
 ---
 
 ## Last Session Status Note
-- **Last Action (this session)**: Completed **v7 Phase 5 Project 5.5: Native Interop / Escape Hatch** (RUN_001_CLAUDE_3_5). Built a demonstration application showing portable abstraction layer + three escape hatch patterns (process execution, system metrics, GPU compute), type-safe boundary crossing via JSON serialization, and structured error propagation. All compiler checks pass (`omni check` exit 0, `omni verify` all contracts verified), 25/25 tests passing.
-- **Key Finding**: No FFI/native interop mechanism is implemented in v6 — `GPU` capability vocabulary exists but no `OMNISYS.gpu` module; no foreign function interface in OMNISYS. Escape hatch architecture is documented but actual native boundary crossing remains to be built.
-- **Verification**: `omni check` ✅, `omni verify` ✅, 25 tests ✅. `BENCHMARK_REASONING.md` and `RESULTS.md` produced with dual-dimension benchmark summary.
-- **Previous**: Executed v7 Phase 4 (Media / Platform) across all 4 projects — all pass `omni check` and pytest suites.
-- **Next**: **v7 Phase 5 remaining projects** (5.1 Crypto, 5.2 Auth, 5.3 Observability, 5.4 Tooling).
+- **Last Action (this session)**: Completed **v6 Phase 9: SMT Verification Expansion** (all 3 items checked). (1) **Structs** — `_build_struct_sorts` models struct `TypeDecl`s as Z3 algebraic datatypes (topological order, recursion → unsupported); `StructConstruct` → datatype constructor, `FieldAccess` → accessor; struct params → Z3 `Const`; nested structs verified. (2) **Function calls** — `_inline_call` inlines user functions in `require`/`ensure` (fresh prefixed param consts, callee requires assumed, result const constrained by `Implies(And(path_conds), result == ret.expr)` + `Or(And(conds))`); recursion → unsupported. **Ensures-guard fix**: guards produced while translating `ensure` clauses are now *assumed* (`_verify` `assumed` list), not negated — otherwise inlined-callee constraints were negated into the proof goal and every call-based ensure failed. (3) **Loops** — sound bounded unrolling (`_LOOP_BOUND = 3`): `for i in range(n)`/bare Number (values `0..n-1`), `for x in [lit, ...]`, `while`, `break`/`continue` dispositions; trip counts provably within bound (checked against `self._pre`) fully verified; loops that may exceed the bound report `unsupported` (never unsoundly verified). Escaped `break`/`continue` → `unsupported`.
+- **Key Finding**: Two soundness traps closed. (a) Inlining constraints were appended to `post` (negated with the ensure) → a helper could "witness" a violation by mismatching its own definitional constraints. Fix: ensure-side guards go into an `assumed` list fed to the `pre` side. (b) Loop bound checks only used path `conds`, not the function's `require`s → `require n is 3` loops still reported unsupported. Fix: `self._pre` is now included in both `_bounded_range` and `_exec_while` sat-checks.
+- **Verification**: `pytest tests/` → **598 passed, 3 skipped** (15 new in test_smt.py: struct param/ctor/nested/counterexample, range/list/while loops bounded + unbounded, recursion → unsupported, multi-path call, call counterexample, break-in-range). `omni verify` CLI end-to-end verified on a struct+loop probe (exit 0; unsupported does not fail exit). Ruff clean on all new Phase 9 code (E501/B905/PLR2004 fixed in new code; pre-existing Phase 8 string-verifier debt untouched).
+- **Note**: `scripts/verify_phase.py --phase all` cannot run on Windows (uses unix `test -f`, `&&` etc.) — CI runs it on ubuntu; not a regression.
+- **Previous**: Completed **v6 Phase 7: Emitter Correctness & Codegen** (all 6 items) and **v6 Phase 8: Platform Parity & Backend Conformance** (all 5 items) — see Chapter Seventeen history entry.
+- **Next**: **v6 Phase 10: OMNISYS API & Runtime Completion** (platform.env fallback, HTTP timeout, UI reactivity, stack traces, net README) or remaining v7 Phase 5 projects (5.1 Crypto, 5.2 Auth, 5.3 Observability, 5.4 Tooling).
 
 ---
 
@@ -311,27 +312,33 @@
 - [x] **Parenthesized expressions preserved in all emitters** (`group` node, HIGH-3) — fixed; previously `(a+b+c)/5` emitted `a+b+c/5` (3.3, 3.4 C-05)
 - [x] **`and`/`or`/`not` logical operators in parser** (`parse_or`/`parse_and`/`parse_not`) — fixed; previously lexed + spec §6.3 but no parser production (2.3)
 - [x] **Negative number literals** (`UnaryExpr` `neg`) — fixed; previously `x is -1` was a syntax error (2.1)
-- [ ] **`_js_template` CSS mangling** — emitter.py:164 converts every `{...}` to `${...}`; `.panel { padding: 8px; }` → `.panel ${ padding: 8px; }` (2.1). Add escape for literal braces in UI templates
-- [ ] **Scene `pos="{var}"` slots preserved at build** — emitter.py:204 splits pos at build time; slot-valued `pos` renders length-1 → no `position.set` emitted (3.4 C-04). Keep slot as expression
-- [ ] **`let`-hoisting for names assigned inside nested `if`/`for`** — only top-level assignments hoisted; nested first-assign → runtime `ReferenceError` (2.1)
-- [ ] **Module-scope `let` excluded when name collides with any function param** — `res`/`payload`/`elapsed` excluded → `ReferenceError: res is not defined` while `omni check` passes (2.3)
-- [ ] **Scene JS artifact self-contained** — emitted code calls `document.createElement` at top level; requires augmented document stub under Node (3.4 C-06). Emit stub or guard
-- [ ] **`sim.*` lowering parity** — JS verbatim, C Flecs scaffolding omits `sim.run`/`sim.query`, Rust Bevy comments only (3.4 C-08)
+- [x] **`_js_template` CSS mangling** — `_js_template` now treats every brace inside `<style>` blocks as literal CSS; `{{`/`}}` escapes remain everywhere; `checker.validate_ui_template` is style-aware (2.1). `.panel { padding: 8px; }` survives verbatim
+- [x] **Scene `pos="{var}"` slots preserved at build** — `_js_scene_pos_set` keeps slot-valued `pos` as a runtime expression (split on commas at runtime) so `position.set` is emitted; `camera pos={var}` too (3.4 C-04)
+- [x] **`let`-hoisting for names assigned inside nested `if`/`for`** — `_assigned_names` recurses into nested blocks; module-scope + function-local declarations cover nested first-assigns (2.1)
+- [x] **Module-scope `let` excluded when name collides with any function param** — per-function `let` locals are emitted inside each function (subtracting only that function's params), so `res`/`payload`/`elapsed` no longer disappear (2.3)
+- [x] **Scene JS artifact self-contained** — top-level Three.js loader is DOM-guarded; auto-inits when `THREE` already present; `renderUI`/`bindClicks` guard missing DOM; runs under a bare 2-field stub (3.4 C-06)
+- [x] **`sim.*` lowering parity** — C now lowers `sim.run` (world tick loop) and `sim.query` (compilable empty-list stub, in source order); Rust lowers `sim.run`/`sim.query` to Bevy scaffolding comments + compilable stubs; no raw `sim.*` identifiers leak into C/Rust output (3.4 C-08)
+
+*Status Note*: Complete. All 6 emitter-correctness gaps closed. `_js_template` is style-aware (`<style>` braces are literal CSS; `checker.validate_ui_template` mirrors it); scene `pos="{var}"` slots stay runtime expressions (`position.set` emitted); `let`-hoisting recurses into nested blocks and scopes function locals per-function; scene JS artifact is DOM-guarded and self-contained (runs under a bare 2-field stub); C `_emit_sim_lowering` rewritten to lower the full main body in source order (`sim.run` → tick loop, `sim.query` → `OmniList` stub) and Rust emits Bevy scaffolding + compilable stubs. 3.4 `integrated_sim.omni` also declared its module-data effects (`reads sim dt x1 y1 ... writes sim x1 y1 ...`) to satisfy the tightened E-EFFECT-004 checker. Tests: 6 new in `test_emitter.py`, 3 new in `test_scene.py`, 3 new in `test_c_emitter.py`, 1 new in `test_rust_emitter.py` → **372 passed, 3 skipped**; 3.4 benchmark suite **10/10 passed**; ruff clean on all new code. Next: **v6 Phase 9 SMT Verification Expansion**.
 
 ### v6 Phase 8: Platform Parity & Backend Conformance
 
 - [x] **`import OMNISYS.scene` reachable** — parser now accepts SCENE keyword token in import path; previously E-SYNTAX-001 while registry advertised the module (3.4 C-03) — fixed
-- [ ] **E-BACKEND-001: OMNISYS imports block C/Rust** — cli.py:31 rejects any OMNISYS import for `--target c/rust`; multi-target builds require v5.3 flat `sim.*` API (3.4 C-01). Allow a documented §8.3 carve-out or map to per-backend runtimes
-- [ ] **JS lane ECS runtime for `sim.*`** — `simulation_engine/runtime.js` exports only actor aliases; no `sim.entity/system/run/query` (3.4 C-02). Ship the ECS runtime the platform advertises
-- [ ] **`gpu.buffer` requires GPU capability** — registered `_pure` (registry) while `gpu.compute` etc. are gated; transfer free but dispatch gated (3.4 C-07). Tag `gpu.buffer` with GPU
-- [ ] **serde capability modeling** — all `omnisys.serde` fns marked pure; serialization side-effects have no capability token (2.3)
-- [ ] **`throw_error` declared `pure` but throws at runtime** — reconcile effect declaration with behavior (1.4)
+- [x] **E-BACKEND-001: OMNISYS imports block C/Rust** — cli.py now gates **per-capability** (§8.3): an import-only program (no `omnisys.*` call) builds on native targets; only programs actually invoking `omnisys.*` are rejected with E-BACKEND-001, offering a `--target js` auto-fix (3.4 C-01) — fixed
+- [x] **JS lane ECS runtime for `sim.*`** — `simulation_engine/runtime.js` now ships `createEcs()` wired into the flat `sim` object: `sim.entity/component/get/system/run/query/remove_entity/entities/snapshot`; `sim.run(steps)` arg-type-dispatches (number → ECS, no-arg → actor drain), so v5.3 flat API and actor API coexist; `scripts/run-omnisys.js` binds `global.sim` (3.4 C-02) — fixed
+- [x] **`gpu.buffer` requires GPU capability** — registry now tags `gpu.buffer` with `GPU` (3.4 C-07) — fixed
+- [x] **serde capability modeling** — `serde.json_decode` and `serde.base64_decode` now carry the `panic` capability (fallible decoders may abort); pure serialization fns stay pure (2.3) — fixed
+- [x] **`throw_error` declared `pure` but throws at runtime** — registry now tags `error.throw_error` with the new `panic` capability (added to the spec §8.2 vocabulary + capability matrix); checker enforces `uses panic` at every boundary (1.4) — fixed
+
+*Status Note*: Complete. All 5 conformance gaps closed. Registry (`omnisys_registry.py`) is the source of truth: `panic` capability added (§8.2) for fallible/aborting fns (`error.throw_error`, `core.panic`, `serde.json_decode`/`base64_decode`), `gpu.buffer` → `GPU`. `cli.py` E-BACKEND-001 gate is per-capability (§8.3 carve-out): import-only builds on native; real `omnisys.*` calls rejected with `--target js` auto-fix (`_mir_uses_omnisys` walks the MIR). JS lane ships `createEcs()` as the flat `sim.*` runtime (entity/component/system/run/query/remove_entity/entities/snapshot; `sim.run(steps)` dispatches ECS vs actor drain); `run-omnisys.js` binds `global.sim`. Docs: `02-capability-matrix.md` + `OMNI_SPEC.md` §8.2. Tests: 4 new ECS tests in `test_distributed.py` + updated `test_imports.py` → 372 passed, 3 skipped. Ruff check + format clean on touched files; mypy no new errors; `verify-docs.py` ✅. `verify_phase.py` is unix-only (fails on Windows console, runs in CI on ubuntu). Next: **v6 Phase 9 SMT Verification Expansion**.
 
 ### v6 Phase 9: SMT Verification Expansion
 
-- [ ] **Struct construction/access in contracts** — smt.py raises `_UnsupportedError` for `StructConstruct`/`FieldAccess`; workaround was returning Number from pure fns (0.1)
-- [ ] **Function calls in contracts** — `FunctionCall` unsupported in smt.py (0.1)
-- [ ] **Loops in verified functions** — unsupported (0.1); needed for real-world contract coverage
+- [x] **Struct construction/access in contracts** — smt.py now models struct `TypeDecl`s as Z3 algebraic datatypes (`_build_struct_sorts`: topological dependency order, recursive struct → `unsupported`); `StructConstruct` translates to the datatype constructor (field order preserved) and `FieldAccess` to the datatype accessor; struct params become Z3 `Const`s and are unsupported cleanly elsewhere. Nested structs verified.
+- [x] **Function calls in contracts** — user functions called from `require`/`ensure` are inlined (`_inline_call`): fresh prefixed param consts, callee `require`s assumed, body symbolically executed, fresh result const constrained by `Implies(And(path_conds), result == ret.expr)` + `Or(And(conds))`; recursion → `unsupported`. Ensure-side translation guards are now *assumed*, not negated (`_verify` `assumed` list), so inlining constraints are definitional.
+- [x] **Loops in verified functions** — `for`/`while` verified by sound bounded unrolling (`_LOOP_BOUND = 3`): `for i in range(n)` / bare Number (values `0..n-1`), `for x in [lit, ...]`, `break`/`continue` dispositions; trip counts provably within the bound (via `require`s, checked against `self._pre`) are fully verified; loops that may exceed the bound report `unsupported` (never an unsound "verified"). Escaped `break`/`continue` → `unsupported`.
+
+*Status Note*: Complete. All 3 SMT-verification gaps closed (structs, calls, loops). `smt.py` now proves contracts over struct construction/field access (incl. nested structs), inlines user function calls (recursion → unsupported), and verifies bounded `for`/`while` loops with `break`/`continue`. Ensures-guard fix: guards produced while translating `ensure` clauses are now assumed rather than negated, so inlined-callee constraints are definitional. Loops whose trip count may exceed `_LOOP_BOUND` (default 3) are `unsupported`, never unsoundly verified. Tests: 15 new in `test_smt.py` (struct param/ctor/nested/counterexample, range/list/while loops, bounded + unbounded, recursion, multi-path call, call counterexample, break-in-range) — **598 passed, 3 skipped**; `omni verify` CLI verified end-to-end on a struct+loop probe (exit 0). Ruff clean on all new Phase 9 code. Next: **v6 Phase 10 OMNISYS API & Runtime Completion** or v7 Phase 5 remaining projects.
 
 ### v6 Phase 10: OMNISYS API & Runtime Completion
 
@@ -348,7 +355,13 @@
 ### v6 Phase 11: Checker Soundness
 
 - [x] **`reads`/`writes` enforcement live** — E-EFFECT-004 with auto `declare-reads-<resource>` fix; previously parsed but unenforced (2.4) — fixed
-- [ ] **Close assignment blind spot** — checker.py:599 `local_names = _assigned_names_ast(fn.body)` exempts any name a function assigns from `writes` checks; a function ASSIGNING a module resource escapes E-EFFECT-004 (2.4). Assigned module names must still be effect-checked
+- [x] **Close assignment blind spot** — checker.py:599 `local_names = _assigned_names_ast(fn.body)` exempted any name a function assigns from `writes` checks; a function ASSIGNING a module resource escaped E-EFFECT-004 (2.4). Fixed by:
+  - Added `_loop_vars_ast` helper (line 161) collecting only for-loop variables (block-scoped in emitter).
+  - Changed `local_names = _loop_vars_ast(fn.body)` in `enforce_function_effects` (line 1259) so plain-assigned module names are no longer exempt from reads/writes checks.
+  - Removed local-names exemption from writes check (Assignment branch now only exempts params).
+  - Updated fixture `03_loops_and_lists.omni` to declare `reads total` + `writes total` for `process` function.
+  - Added 3 regression tests in `test_checker.py`: assigned module resource flagged, declared OK, loop-var shadowing not flagged.
+  - Fixed 4 benchmark sources (`particle_sim`, `finance_dashboard`, `inventory`, `voice_recorder`) to declare their reads/writes per the reference pattern.
 
 ---
 
@@ -359,8 +372,8 @@
 ### Pillar 1: AI-First & Agent Experience
 
 **Easy (parallel sub-agents):**
-- [ ] **[EASY] Short-Form Agent Syntax (`#lang agent`)** — compact, token-efficient shorthand (symbols, implied returns) that expands to canonical `.omni`; LLM context savings + faster generation
-- [ ] **[EASY] Native formatter (`omni fmt`)** — canonical whitespace/layout so agent output is uniform and diffable
+- [x] **[EASY] Short-Form Agent Syntax (`#lang agent`)** — compact, token-efficient shorthand (symbols, implied returns) that expands to canonical `.omni`; LLM context savings + faster generation
+- [x] **[EASY] Native formatter (`omni fmt`)** — canonical whitespace/layout so agent output is uniform and diffable
 
 **Hard (strong model / independent sessions):**
 - [ ] **[HARD] Bidirectional AST-to-Source Synthesizer API** — first-class compiler API that renders format-clean `.omni` from a JSON AST; syntax becomes a rendering, not storage
@@ -371,17 +384,17 @@
 ### Pillar 2: Checked Effects & Capability Soundness
 
 **Easy (parallel sub-agents):**
-- [ ] **[EASY] Memory & allocation effects** — `allocates`, `mutates heap` effect tokens so WASM/embedded targets can statically bound memory
-- [ ] **[EASY] Value-parameterized effects** — `reads file("/etc/config.json")`, `uses network("api.com")` instead of blanket host-wide permissions
+- [x] **[EASY] Memory & allocation effects** — `allocates`, `mutates heap` effect tokens so WASM/embedded targets can statically bound memory
+- [x] **[EASY] Value-parameterized effects** — `reads file("/etc/config.json")`, `uses network("api.com")` instead of blanket host-wide permissions
 
 **Hard (strong model / independent sessions):**
-- [ ] **[HARD] Capability delegation / borrowing** — pass restricted capability tokens to callbacks for the duration of a call (Rust-lifetime style, for effects)
+- [x] **[HARD] Capability delegation / borrowing** — pass restricted capability tokens to callbacks for the duration of a call (Rust-lifetime style, for effects)
 - [ ] **[HARD] Static analysis of escape hatches** — verify inline JS/raw C blocks cannot run blacklisted ops unless the wrapping block declares the capability; `pure` stays truthful
 
 ### Pillar 3: SMT Static Contract Verification (Z3)
 
 **Easy (parallel sub-agents):**
-- [ ] **[EASY] Text/string solver integration** — model `Text` as SMT sequences in `smt.py`; prove sanitization and length-bound safety
+- [x] **[EASY] Text/string solver integration** — model `Text` as SMT sequences in `smt.py`; prove sanitization and length-bound safety
 
 **Hard (strong model / independent sessions):**
 - [ ] **[HARD] Hybrid static-to-runtime verification** — unprovable contracts (`unsupported`/`failed`) auto-compile into runtime asserts; proved contracts compile away to zero cost
@@ -391,7 +404,7 @@
 ### Pillar 4: Multi-Backend Conformance (The Frankenstein Iron Law)
 
 **Easy (parallel sub-agents):**
-- [ ] **[EASY] Floating-point conformance** — unify division-by-zero, NaN, infinity, rounding across JS/C/Rust/SMT; multi-target results must not diverge
+- [x] **[EASY] Floating-point conformance** — unify division-by-zero, NaN, infinity, rounding across JS/C/Rust/SMT; multi-target results must not diverge
 
 **Hard (strong model / independent sessions):**
 - [ ] **[HARD] Unified memory management** — refcounting/region allocator for C/Rust targets to match JS GC semantics; identical memory safety
@@ -400,8 +413,8 @@
 ### Pillar 5: Real-World Runtime & Ecosystem
 
 **Easy (parallel sub-agents):**
-- [ ] **[EASY] Event loop & timer API** — native grammar for ticks, intervals, async delays (beyond `when app starts`)
-- [ ] **[EASY] SQLite persistence** — real SQLite/SQLite-WASM storage replacing in-memory `db` tables
+- [x] **[EASY] Event loop & timer API** — native grammar for ticks, intervals, async delays (beyond `when app starts`)
+- [x] **[EASY] SQLite persistence** — real SQLite/SQLite-WASM storage replacing in-memory `db` tables
 
 **Hard (strong model / independent sessions):**
 - [ ] **[HARD] Real wire networking** — actual TCP/TLS sockets and HTTP server bindings on JS/C/Rust (beyond in-process mocks)
@@ -410,7 +423,7 @@
 ### Pillar 6: Packaging & Distribution
 
 **Easy (parallel sub-agents):**
-- [ ] **[EASY] Version constraints & lockfiles** — semver parsing, checksum lockfile, deterministic resolution metadata
+- [x] **[EASY] Version constraints & lockfiles** — semver parsing, checksum lockfile, deterministic resolution metadata
 
 **Hard (strong model / independent sessions):**
 - [ ] **[HARD] Secure dependency resolver (`omni pkg`)** — Cargo/npm-style resolver with content-addressable local cache and integrity verification
@@ -524,7 +537,7 @@ The v7 benchmark is an empirical feedback loop for continuous ecosystem evaluati
 - [x] **3.2 3D Scene / Solar System**: Interactive 3D scene visualization with hierarchical transforms, camera positioning, lighting, and orbital motion.
 - [x] **3.3 GPU / Image Filter**: High-performance image matrix processing utilizing hardware GPU compute pipelines.
 - [x] **3.4 ECS / Particle Sim Coexistence**: Integrated application proving data-oriented entity-component simulation coexists seamlessly with 3D scene rendering and graphics pipelines.
-*Status Note*: Complete. 4 projects implemented in `OMNISCRIPT_AI_BENCHMARK/PHASE_3_GRAPHICS_GPU_SIM/`, each with `RUN_001_DEEPSEEK_V4_FLASH_FREE/{source, tests, BENCHMARK_REASONING.md, RESULTS.md}` (+ `CONFORMANCE_RESULTS.md` for 3.4). 51 tests passing (3.1: 14, 3.2: 15, 3.3: 12, 3.4: 10). All sources pass `omni check` exit 0 and build exit 0 for `--target js|c|rust`; JS artifacts run under Node (document stub + extracted `<script>`; scene-bearing programs need the AUGMENTED stub with `createElement`/`head`/`body`; ECS 3.4 additionally needs a harness-provided `sim.*` ECS runtime). Key ecosystem findings (see 3.4 CONFORMANCE_RESULTS.md): `import OMNISYS.*` blocks C/Rust (E-BACKEND-001) → 3.4 uses the v5.3 flat `sim.*` API; `import OMNISYS.scene` is structurally impossible (`scene` is a keyword token, parser wants IDENTIFIER) while the registry advertises it; `scene:` `pos="{var}"` slots are dropped at build time (literal `pos="x,y,z"` only); the JS lane ships NO ECS runtime for `sim.*`; **compiler bug**: `_js_expr` drops grouping parens (`(a+b+c)/5` → `a+b+c/5`, JS precedence wins) — workaround: hoist group into a temporary (found in 3.3, documented in 3.4 CONFORMANCE_RESULTS C-05); `gpu.buffer` is registered pure (no GPU capability). Next: **v7 Phase 4 Media/Platform**.
+*Status Note*: Complete. 4 projects implemented in `OMNISCRIPT_AI_BENCHMARK/PHASE_3_GRAPHICS_GPU_SIM/`, each with `RUN_001_DEEPSEEK_V4_FLASH_FREE/{source, tests, BENCHMARK_REASONING.md, RESULTS.md}` (+ `CONFORMANCE_RESULTS.md` for 3.4). 51 tests passing (3.1: 14, 3.2: 15, 3.3: 12, 3.4: 10). All sources pass `omni check` exit 0 and build exit 0 for `--target js|c|rust`; JS artifacts run under Node (document stub + extracted `<script>`; scene-bearing programs need the AUGMENTED stub with `createElement`/`head`/`body`; ECS 3.4 additionally needs a harness-provided `sim.*` ECS runtime). Key ecosystem findings (see 3.4 CONFORMANCE_RESULTS.md): `import OMNISYS.*` blocks C/Rust (E-BACKEND-001) → 3.4 uses the v5.3 flat `sim.*` API; `import OMNISYS.scene` is structurally impossible (`scene` is a keyword token, parser wants IDENTIFIER) while the registry advertises it; `scene:` `pos="{var}"` slots are dropped at build time (literal `pos="x,y,z"` only); the JS lane ships NO ECS runtime for `sim.*`; **compiler bug**: `_js_expr` drops grouping parens (`(a+b+c)/5` → `a+b+c/5`, JS precedence wins) — workaround: hoist group into a temporary (found in 3.3, documented in 3.4 CONFORMANCE_RESULTS C-05); `gpu.buffer` is registered pure (no GPU capability). Next: **v7 Phase 4 Media/Platform**. *(Fixed later in v6 Phase 7: CSS mangling, `pos="{var}"` slots, let-hoisting, self-contained scene JS, `sim.*` C/Rust parity — see the Phase 7 checklist above.)*
 
 #### Phase 4: Media / Platform (4 Projects) — COMPLETE ✅ (RUN_001_CLAUDE_3_5)
 *Testing audio processing, video decoding, camera/microphone I/O, and platform escape hatches.*

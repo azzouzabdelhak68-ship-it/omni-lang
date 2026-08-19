@@ -1,0 +1,137 @@
+# Native System Utility with Portable Fallbacks
+# Project 4.4: Platform / System Utility
+#
+# Portable abstraction interface for core system operations with
+# multi-platform backend implementations and native escape hatches.
+#
+# Capability vocabulary: process (OS, arch, env, sleep)
+#                        network (for native escape hatches)
+#                        filesystem (for file-based fallbacks)
+
+import OMNISYS.core
+import OMNISYS.platform
+import OMNISYS.collections
+
+# --- Portable type declarations ---
+
+type SystemInfo = { os: Text, arch: Text, env: Text, capabilities_available: Boolean }
+type PlatformCapabilities = { supports_ansi: Boolean, max_columns: Number, max_rows: Number }
+
+# --- Portable abstraction interface ---
+
+fn system_info() -> SystemInfo:
+    uses process
+    os_name = OMNISYS.platform.os()
+    arch_name = OMNISYS.platform.arch()
+    if OMNISYS.core.is_empty(os_name):
+        os_name = "unknown"
+    end
+    if OMNISYS.core.is_empty(arch_name):
+        arch_name = "unknown"
+    end
+    env_str = OMNISYS.platform.env("PATH")
+    if OMNISYS.core.is_empty(env_str):
+        env_str = "environment not available"
+    end
+    return SystemInfo(os = os_name, arch = arch_name, env = env_str, capabilities_available = false)
+
+fn get_terminal_capabilities() -> PlatformCapabilities:
+    uses process
+    cap_map = OMNISYS.platform.capabilities()
+    supports_ansi = false
+    max_cols = 80
+    max_rows = 24
+    collected: List = []
+    for item in cap_map:
+        collected = omnisys.collections.list_push(collected, item)
+    end
+    idx = 0
+    while idx < omnisys.collections.list_size(collected):
+        cap_item = omnisys.collections.list_get(collected, idx)
+        next_idx = idx + 1
+        if next_idx < omnisys.collections.list_size(collected):
+            cap_value = omnisys.collections.list_get(collected, next_idx)
+        else:
+            cap_value = "true"
+        end
+        if cap_item is "supports_ansi":
+            supports_ansi = OMNISYS.core.is_empty(cap_value) is false
+        else:
+            parsed = OMNISYS.core.is_empty(cap_value)
+            if parsed is false:
+                case cap_item of:
+                    "max_columns":
+                        max_cols = OMNISYS.core.string_to_number(cap_value)
+                    "max_rows":
+                        max_rows = OMNISYS.core.string_to_number(cap_value)
+                end
+            end
+        end
+        idx = idx + 2
+    end
+    return PlatformCapabilities(supports_ansi = supports_ansi, max_columns = max_cols, max_rows = max_rows)
+
+# --- Native escape hatch ---
+
+fn native_platform_execute(command: Text) -> Number:
+    uses network
+    if OMNISYS.core.is_empty(command):
+        return 127
+    response_value = OMNISYS.net.request(
+        OMNISYS.net.server(fn(_) -> pure end),
+        "/execute",
+        command,
+    )
+    exit_code = OMNISYS.net.status_of(response_value)
+    if OMNISYS.core.is_empty(exit_code):
+        return 127
+    end
+    return exit_code
+
+# --- Fallback behavior utilities ---
+
+fn safe_env_get(key: Text, default: Text) -> Text:
+    uses process
+    value = OMNISYS.platform.env(key)
+    if OMNISYS.core.is_empty(value):
+        return default
+    end
+    return value
+
+fn detect_platform_family() -> Text:
+    uses process
+    os_val = OMNISYS.platform.os()
+    if OMNISYS.core.is_empty(os_val):
+        return "unknown"
+    end
+    if omnisys.collections.list_contains(
+        omnisys.collections.list_join(
+            omnisys.collections.map_keys(omnisys.collections.map_from_entries([
+                { "key": "Windows", "value": "windows" },
+                { "key": "Darwin", "value": "macos" },
+                { "key": "Linux", "value": "linux" },
+            ])),
+            ","
+        ),
+        os_val,
+    ):
+        return os_val
+    end
+    return "unknown"
+
+# --- Entry point ---
+
+when app starts:
+    info = system_info()
+    show "platform: {info.os} on {info.arch}"
+    show "env: {info.env}"
+    show "capabilities available: {info.capabilities_available}"
+    caps = get_terminal_capabilities()
+    show "terminal: ansi={caps.supports_ansi}, size={caps.max_cols}x{caps.max_rows}"
+    path = safe_env_get("PATH", "path not available")
+    show "PATH: {path}"
+    family = detect_platform_family()
+    show "platform family: {family}"
+    result = native_platform_execute("echo hello")
+    show "execute result: {result}"
+end

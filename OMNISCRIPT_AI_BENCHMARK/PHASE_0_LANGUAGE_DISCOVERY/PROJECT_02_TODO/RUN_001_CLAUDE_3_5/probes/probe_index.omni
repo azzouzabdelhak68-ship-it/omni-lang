@@ -1,0 +1,13 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+when app starts:
+    tasks = []
+    tasks = omnisys.collections.list_push(tasks, "a")
+    tasks = omnisys.collections.list_push(tasks, "b")
+    tasks = omnisys.collections.list_push(tasks, "c")
+    first = omnisys.collections.list_get(tasks, 0)
+    show first
+    second = omnisys.collections.list_get(tasks, 1)
+    show second
+end

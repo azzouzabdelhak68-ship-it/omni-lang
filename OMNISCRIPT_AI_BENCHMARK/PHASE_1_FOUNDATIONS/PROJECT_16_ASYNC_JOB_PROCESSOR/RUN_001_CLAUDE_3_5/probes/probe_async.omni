@@ -1,0 +1,84 @@
+import OMNISYS.async
+import OMNISYS.core
+import OMNISYS.platform
+
+# Named functions for task creation
+fn task_fn_hello() -> Text:
+    pure
+    return "hello from task"
+end
+
+fn task_fn_slow() -> Text:
+    uses process
+    omnisys.platform.sleep_ms(100)
+    return "done"
+end
+
+fn task_fn_a() -> Text:
+    pure
+    return "a"
+end
+
+fn task_fn_b() -> Text:
+    pure
+    return "b"
+end
+
+fn task_fn_c() -> Text:
+    pure
+    return "c"
+end
+
+# Probe 1: Basic task creation and execution
+fn probe_basic_task() -> Text:
+    uses process
+    task = omnisys.async.task(task_fn_hello)
+    return omnisys.core.type_of(task)
+end
+
+# Probe 2: Channel send/recv
+fn probe_channel() -> Text:
+    uses process
+    ch = omnisys.async.channel(10)
+    send_task = omnisys.async.channel_send(ch, "test value")
+    recv_task = omnisys.async.channel_recv(ch)
+    return "channel created"
+end
+
+# Probe 3: Timeout
+fn probe_timeout() -> Text:
+    uses process
+    slow_task = omnisys.async.task(task_fn_slow)
+    timed = omnisys.async.timeout(slow_task, 50)
+    return "timeout wrapped"
+end
+
+# Probe 4: all combinator
+fn probe_all() -> Text:
+    uses process
+    t1 = omnisys.async.task(task_fn_a)
+    t2 = omnisys.async.task(task_fn_b)
+    t3 = omnisys.async.task(task_fn_c)
+    all_task = omnisys.async.all([t1, t2, t3])
+    return "all created"
+end
+
+when app starts:
+    show "=== Probe 1: Basic Task ==="
+    result1 = probe_basic_task()
+    show "Task type: " + result1
+    
+    show "=== Probe 2: Channel ==="
+    result2 = probe_channel()
+    show result2
+    
+    show "=== Probe 3: Timeout ==="
+    result3 = probe_timeout()
+    show result3
+    
+    show "=== Probe 4: All Combinator ==="
+    result4 = probe_all()
+    show result4
+    
+    show "All probes completed"
+end

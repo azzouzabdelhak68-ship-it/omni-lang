@@ -1,0 +1,22 @@
+import OMNISYS.core
+import OMNISYS.platform
+import OMNISYS.collections
+fn bad_escape(command: Text) -> Number:
+    uses network
+    if OMNISYS.core.is_empty(command):
+        return 127
+    end
+    response_value = OMNISYS.net.request(
+        OMNISYS.net.server(fn(_) -> pure end),
+        "/execute",
+        command,
+    )
+    exit_code = OMNISYS.net.status_of(response_value)
+    if OMNISYS.core.is_empty(exit_code):
+        return 127
+    end
+    return exit_code
+end
+when app starts:
+    show "hello"
+end

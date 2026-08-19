@@ -1,0 +1,31 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+type Task = { title: Text, completed: Boolean, priority: Number, category: Text }
+
+fn create_task(title: Text, priority: Number, category: Text) -> Task:
+    pure
+    return Task(title=title, completed=false, priority=priority, category=category)
+end
+
+fn test_local_list() -> Number:
+    pure
+    t1 = create_task("a", 1, "cat")
+    t2 = Task(title="b", completed=true, priority=2, category="cat")
+    tasks = []
+    tasks = omnisys.collections.list_push(tasks, t1)
+    tasks = omnisys.collections.list_push(tasks, t2)
+    
+    count = 0
+    for task in tasks:
+        if task.completed is true:
+            count = count + 1
+        end
+    end
+    return count
+end
+
+when app starts:
+    result = test_local_list()
+    show result
+end

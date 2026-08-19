@@ -27,49 +27,49 @@ from omni_compiler.lexer import tokenize
 from omni_compiler.mir import to_mir
 from omni_compiler.parser import parse
 
-APP_JS = Path("visual_editor/app.js")
-INDEX_HTML = Path("visual_editor/index.html")
+APP_JS = Path('visual_editor/app.js')
+INDEX_HTML = Path('visual_editor/index.html')
 EDITOR_URI = INDEX_HTML.resolve().as_uri()
 
 HARNESS = """\
 global.document = {
-  getElementById: function () { return { innerHTML: "" }; },
+  getElementById: function () { return { innerHTML: "", addEventListener: function () {} }; },
   querySelectorAll: function () { return []; },
 };
 """
 
 
 def _node_available() -> bool:
-    return shutil.which("node") is not None
+    return shutil.which('node') is not None
 
 
 def _playwright_available() -> bool:
-    return importlib.util.find_spec("playwright") is not None
+    return importlib.util.find_spec('playwright') is not None
 
 
-needs_node = pytest.mark.skipif(not _node_available(), reason="node not installed")
+needs_node = pytest.mark.skipif(not _node_available(), reason='node not installed')
 needs_playwright = pytest.mark.skipif(
-    not _playwright_available(), reason="playwright not installed"
+    not _playwright_available(), reason='playwright not installed'
 )
 
 
 def _run_node(source: str) -> str:
     result = subprocess.run(
-        ["node", "-e", source],
+        ['node', '-e', source],
         capture_output=True,
         text=True,
-        cwd=".",
+        cwd='.',
         check=False,
     )
-    assert result.returncode == 0, f"node failed:\n{result.stderr}\n{result.stdout}"
+    assert result.returncode == 0, f'node failed:\n{result.stderr}\n{result.stdout}'
     return result.stdout
 
 
 def _render(blocks_js: str) -> str:
     """Render a JSON array of blocks to OmniScript by evaluating renderOmni in Node."""
     src = "const api = require('./visual_editor/app.js');\n"
-    src += "console.log(api.renderOmni(" + blocks_js + "));\n"
-    return _run_node(src).rstrip("\n")
+    src += 'console.log(api.renderOmni(' + blocks_js + '));\n'
+    return _run_node(src).rstrip('\n')
 
 
 def _compile(omni: str) -> str:
@@ -79,8 +79,8 @@ def _compile(omni: str) -> str:
     mir = to_mir(ast, symbol_table)
     js = emit_js(mir)
 
-    match = re.search(r"<script>(.*)</script>", js, re.DOTALL)
-    assert match is not None, "emitted HTML contains no <script> block"
+    match = re.search(r'<script>(.*)</script>', js, re.DOTALL)
+    assert match is not None, 'emitted HTML contains no <script> block'
     return match.group(1)
 
 
@@ -93,22 +93,21 @@ class TestRenderOmni:
 
     def test_renders_app_assign_and_show(self) -> None:
         omni = _render(
-            '[{type:"assign",name:"total",value:"add(1, 2)"},'
-            '{type:"show",value:"total"}]'
+            '[{type:"assign",name:"total",value:"add(1, 2)"},{type:"show",value:"total"}]'
         )
-        assert "when app starts:" in omni
-        assert "    total = add(1, 2)" in omni
-        assert "    show total" in omni
-        assert "end" in omni
+        assert 'when app starts:' in omni
+        assert '    total = add(1, 2)' in omni
+        assert '    show total' in omni
+        assert 'end' in omni
 
     def test_renders_fn_with_pure_and_return(self) -> None:
         omni = _render(
             '[{type:"fn",name:"add",params:"a: Number, b: Number",ret:"Number",'
             'body:[{type:"return",value:"a + b"}]}]'
         )
-        assert "fn add(a: Number, b: Number) -> Number:" in omni
-        assert "    pure" in omni
-        assert "    return a + b" in omni
+        assert 'fn add(a: Number, b: Number) -> Number:' in omni
+        assert '    pure' in omni
+        assert '    return a + b' in omni
 
     def test_renders_if_with_else(self) -> None:
         omni = _render(
@@ -116,36 +115,33 @@ class TestRenderOmni:
             'body:[{type:"assign",name:"y",value:"1"}],'
             'elseBody:[{type:"assign",name:"y",value:"0"}]}]'
         )
-        assert "if x greater than 0:" in omni
-        assert "else:" in omni
-        assert "        y = 1" in omni
-        assert "        y = 0" in omni
+        assert 'if x greater than 0:' in omni
+        assert 'else:' in omni
+        assert '        y = 1' in omni
+        assert '        y = 0' in omni
 
     def test_renders_for_loop(self) -> None:
         omni = _render(
-            '[{type:"for",variable:"n",iterable:"items",'
-            'body:[{type:"show",value:"n"}]}]'
+            '[{type:"for",variable:"n",iterable:"items",body:[{type:"show",value:"n"}]}]'
         )
-        assert "for n in items:" in omni
-        assert "    show n" in omni
+        assert 'for n in items:' in omni
+        assert '    show n' in omni
 
     def test_renders_call_break_continue(self) -> None:
-        omni = _render(
-            '[{type:"call",call:"log()"},{type:"break"},{type:"continue"}]'
-        )
-        assert "    log()" in omni
-        assert "    break" in omni
-        assert "    continue" in omni
+        omni = _render('[{type:"call",call:"log()"},{type:"break"},{type:"continue"}]')
+        assert '    log()' in omni
+        assert '    break' in omni
+        assert '    continue' in omni
 
     def test_ui_slot_uses_first_assign(self) -> None:
         omni = _render('[{"type":"assign","name":"greeting","value":"hi"}]')
-        assert "UI:" in omni
-        assert "<h1>{greeting}</h1>" in omni
-        assert "    greeting = hi" in omni
+        assert 'UI:' in omni
+        assert '<h1>{greeting}</h1>' in omni
+        assert '    greeting = hi' in omni
 
     def test_ui_falls_back_without_assign(self) -> None:
         omni = _render('[{"type":"show","value":"x"}]')
-        assert "<p>OmniScript app</p>" in omni
+        assert '<p>OmniScript app</p>' in omni
 
 
 class TestGeneratedOmniCompiles:
@@ -160,20 +156,20 @@ class TestGeneratedOmniCompiles:
             '{type:"show",value:"total"}]'
         )
         script = _compile(omni)
-        assert "function add(a, b)" in script
+        assert 'function add(a, b)' in script
         out = _run_emitted(script)
-        assert "3" in out.splitlines(), f"expected '3' in output:\n{out}"
+        assert '3' in out.splitlines(), f"expected '3' in output:\n{out}"
 
     @needs_node
     def test_editor_app_js_loads_in_node(self) -> None:
         out = _run_node(
             "const api = require('./visual_editor/app.js');"
-            "console.log(typeof api.renderOmni, typeof api.blockToOmni);"
+            'console.log(typeof api.renderOmni, typeof api.blockToOmni);'
         )
-        assert "function function" in out
+        assert 'function function' in out
 
 
-@pytest.mark.skipif(not INDEX_HTML.exists(), reason="visual_editor/index.html missing")
+@pytest.mark.skipif(not INDEX_HTML.exists(), reason='visual_editor/index.html missing')
 class TestVisualEditorE2E:
     """Drag blocks -> generate .omni -> compile -> run."""
 
@@ -187,42 +183,42 @@ class TestVisualEditorE2E:
             try:
                 page = browser.new_page()
                 page.goto(EDITOR_URI)
-                page.wait_for_load_state("load")
+                page.wait_for_load_state('load')
 
                 # fn block
-                page.drag_and_drop("#palette [data-type='fn']", "#root")
-                fn_inputs = page.locator("#root .card.type-fn input")
-                fn_inputs.nth(0).fill("add")
-                fn_inputs.nth(1).fill("a: Number, b: Number")
-                fn_inputs.nth(2).fill("Number")
+                page.drag_and_drop("#palette [data-type='fn']", '#root')
+                fn_inputs = page.locator('#root .card.type-fn input')
+                fn_inputs.nth(0).fill('add')
+                fn_inputs.nth(1).fill('a: Number, b: Number')
+                fn_inputs.nth(2).fill('Number')
 
                 # return block into fn body
                 page.drag_and_drop(
                     "#palette [data-type='return']",
-                    "#root .card.type-fn .dropzone",
+                    '#root .card.type-fn .dropzone',
                 )
-                page.locator(
-                    "#root .card.type-fn .nested .card.type-return input"
-                ).first.fill("a + b")
+                page.locator('#root .card.type-fn .nested .card.type-return input').first.fill(
+                    'a + b'
+                )
 
                 # assign + show at the top level
-                page.drag_and_drop("#palette [data-type='assign']", "#root")
-                assign_inputs = page.locator("#root .card.type-assign input")
-                assign_inputs.nth(0).fill("total")
-                assign_inputs.nth(1).fill("add(1, 2)")
-                page.drag_and_drop("#palette [data-type='show']", "#root")
-                page.locator("#root .card.type-show input").first.fill("total")
+                page.drag_and_drop("#palette [data-type='assign']", '#root')
+                assign_inputs = page.locator('#root .card.type-assign input')
+                assign_inputs.nth(0).fill('total')
+                assign_inputs.nth(1).fill('add(1, 2)')
+                page.drag_and_drop("#palette [data-type='show']", '#root')
+                page.locator('#root .card.type-show input').first.fill('total')
 
-                code = page.locator("#omni-code").input_value()
+                code = page.locator('#omni-code').input_value()
             finally:
                 browser.close()
 
-        assert "fn add(a: Number, b: Number) -> Number:" in code
-        assert "    return a + b" in code
-        assert "    total = add(1, 2)" in code
-        assert "    show total" in code
+        assert 'fn add(a: Number, b: Number) -> Number:' in code
+        assert '    return a + b' in code
+        assert '    total = add(1, 2)' in code
+        assert '    show total' in code
 
         # compile -> run the generated .omni through the reference pipeline
         script = _compile(code)
         out = _run_emitted(script)
-        assert "3" in out.splitlines(), f"expected '3' in output:\n{out}"
+        assert '3' in out.splitlines(), f"expected '3' in output:\n{out}"

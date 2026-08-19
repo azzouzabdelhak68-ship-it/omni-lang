@@ -1,0 +1,16 @@
+# Test different type declaration styles
+
+# Style 1: Simple type with fields
+type P1 = {
+    x: Number,
+    y: Number,
+}
+
+# Style 2: Type with Boolean field
+type P2 = {
+    flag: Boolean,
+}
+
+when app starts:
+    show "hello"
+end

@@ -1,0 +1,18 @@
+import OMNISYS.db
+
+fn reads_only() -> None:
+    reads database
+    d = OMNISYS.db.create_db("x")
+    show d
+end
+
+fn writes_only() -> None:
+    writes database
+    d = OMNISYS.db.create_db("y")
+    show d
+end
+
+when app starts:
+    reads_only()
+    writes_only()
+end

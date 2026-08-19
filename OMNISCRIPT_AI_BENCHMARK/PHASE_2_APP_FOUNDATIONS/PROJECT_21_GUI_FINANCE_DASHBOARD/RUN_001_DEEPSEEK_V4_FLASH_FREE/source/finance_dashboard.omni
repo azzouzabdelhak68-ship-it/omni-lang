@@ -1,0 +1,537 @@
+# finance_dashboard.omni — Personal Finance Dashboard (Benchmark Project 2.1)
+#
+# Interactive GUI application in OmniScript:
+#   - data model: Transaction structs stored in a module-level reactive list
+#   - navigation: overview / transactions / breakdown views (live-linked inline styles)
+#   - data entry + validation: add_transaction pipeline (positive amount, non-empty
+#     category, valid YYYY-MM-DD date) with distinct error banner on invalid input
+#   - tables + filtering: fixed-capacity table, category + date-range filters
+#   - reactive state: module-scope variables are the reactive store; every action
+#     runs inside batchUpdate -> one re-render at block end (live-link batching)
+#   - empty & error states: distinct banners
+#
+# Language facts discovered while writing this (see BENCHMARK_REASONING.md):
+#   - `and`/`or` are lexed but NOT parseable -> use nested ifs
+#   - literal `{` in the UI template is always a slot -> CSS braces impossible,
+#     inline styles only
+#   - for-loop vars are typed Number by the checker -> field access on loop items
+#     requires accessor functions taking a Transaction parameter
+#   - ISO date strings compare correctly with > < >= <= (lexicographic)
+
+import OMNISYS
+import OMNISYS.collections
+
+type Transaction = { date: Text, category: Text, amount: Number, description: Text }
+
+when app starts:
+    t1 = Transaction(date="2025-11-01", category="Food", amount=12.5, description="Coffee")
+    t2 = Transaction(date="2025-11-03", category="Rent", amount=800.0, description="November rent")
+    t3 = Transaction(date="2025-11-05", category="Utilities", amount=95.0, description="Electricity")
+    t4 = Transaction(date="2025-11-08", category="Food", amount=74.2, description="Groceries")
+    t5 = Transaction(date="2025-11-12", category="Income", amount=2500.0, description="Salary")
+    transactions = [t1, t2, t3, t4, t5]
+    view = "overview"
+    filter_category = ""
+    filter_from = ""
+    filter_to = ""
+    matches = true
+    ci = 0
+    error_message = ""
+    notice = ""
+    balance = 0.0
+    balance_display = 0
+    total_count = 0
+    visible_count = 0
+    visible_total = 0.0
+    empty_notice = ""
+    empty_notice_display = "none"
+    render_count = 0
+    overview_display = "block"
+    transactions_display = "none"
+    breakdown_display = "none"
+    error_display = "none"
+    notice_display = "none"
+    nav_overview_weight = "bold"
+    nav_transactions_weight = "normal"
+    nav_breakdown_weight = "normal"
+    r0_date = ""
+    r0_category = ""
+    r0_amount = 0
+    r0_desc = ""
+    r1_date = ""
+    r1_category = ""
+    r1_amount = 0
+    r1_desc = ""
+    r2_date = ""
+    r2_category = ""
+    r2_amount = 0
+    r2_desc = ""
+    r3_date = ""
+    r3_category = ""
+    r3_amount = 0
+    r3_desc = ""
+    r4_date = ""
+    r4_category = ""
+    r4_amount = 0
+    r4_desc = ""
+    r5_date = ""
+    r5_category = ""
+    r5_amount = 0
+    r5_desc = ""
+    cat_name_0 = ""
+    cat_total_0 = 0
+    cat_name_1 = ""
+    cat_total_1 = 0
+    cat_name_2 = ""
+    cat_total_2 = 0
+    cat_name_3 = ""
+    cat_total_3 = 0
+    recompute()
+end
+
+fn tx_date(tx: Transaction) -> Text:
+    return tx.date
+end
+
+fn tx_category(tx: Transaction) -> Text:
+    return tx.category
+end
+
+fn tx_amount(tx: Transaction) -> Number:
+    return tx.amount
+end
+
+fn tx_description(tx: Transaction) -> Text:
+    return tx.description
+end
+
+fn validate_amount(amount: Number) -> Text:
+    if amount > 0:
+        return ""
+    end
+    return "Amount must be a positive number."
+end
+
+fn validate_category(category: Text) -> Text:
+    if omnisys.core.length(category) is 0:
+        return "Category must not be empty."
+    end
+    return ""
+end
+
+fn is_digits(s: Text) -> Boolean:
+    if omnisys.core.round(s) > 0:
+        return true
+    end
+    return false
+end
+
+fn validate_date(year: Text, month: Text, day: Text) -> Text:
+    if omnisys.core.length(year) is not 4:
+        return "Date year must be 4 digits."
+    end
+    if omnisys.core.length(month) is not 2:
+        return "Date month must be 2 digits."
+    end
+    if omnisys.core.length(day) is not 2:
+        return "Date day must be 2 digits."
+    end
+    if is_digits(year) is false:
+        return "Date year must be numeric."
+    end
+    if is_digits(month) is false:
+        return "Date month must be numeric."
+    end
+    if is_digits(day) is false:
+        return "Date day must be numeric."
+    end
+    if year < "1900":
+        return "Date year must be at least 1900."
+    end
+    if year > "2100":
+        return "Date year must be at most 2100."
+    end
+    if month < "01":
+        return "Date month must be between 01 and 12."
+    end
+    if month > "12":
+        return "Date month must be between 01 and 12."
+    end
+    if day < "01":
+        return "Date day must be between 01 and 31."
+    end
+    if day > "31":
+        return "Date day must be between 01 and 31."
+    end
+    return ""
+end
+
+fn add_transaction(amount: Number, category: Text, year: Text, month: Text, day: Text, description: Text) -> Text:
+    reads transactions
+    writes error_message notice transactions
+    err = validate_amount(amount)
+    if err is "":
+        err = validate_category(category)
+    end
+    if err is "":
+        err = validate_date(year, month, day)
+    end
+    if err is not "":
+        error_message = err
+        notice = ""
+        recompute()
+        return err
+    end
+    date = "{year}-{month}-{day}"
+    t = Transaction(date=date, category=category, amount=amount, description=description)
+    transactions = omnisys.collections.list_push(transactions, t)
+    error_message = ""
+    notice = "Added {category} on {date} for {amount}."
+    recompute()
+    return ""
+end
+
+fn recompute:
+    reads transactions filter_category filter_from filter_to view error_message notice balance matches render_count ci visible_count visible_total
+    writes render_count balance balance_display empty_notice empty_notice_display r0_date r0_category r0_amount r0_desc r1_date r1_category r1_amount r1_desc r2_date r2_category r2_amount r2_desc r3_date r3_category r3_amount r3_desc r4_date r4_category r4_amount r4_desc r5_date r5_category r5_amount r5_desc ci matches total_count visible_count visible_total transactions_display overview_display breakdown_display error_display notice_display nav_overview_weight nav_transactions_weight nav_breakdown_weight cat_name_0 cat_name_1 cat_name_2 cat_name_3 cat_total_0 cat_total_1 cat_total_2 cat_total_3
+    render_count = render_count + 1
+    balance = 0.0
+    total_count = omnisys.core.length(transactions)
+    visible_transactions = []
+    for t in transactions:
+        balance = balance + tx_amount(t)
+        matches = true
+        if filter_category is not "":
+            if tx_category(t) is not filter_category:
+                matches = false
+            end
+        end
+        if filter_from is not "":
+            if tx_date(t) < filter_from:
+                matches = false
+            end
+        end
+        if filter_to is not "":
+            if tx_date(t) > filter_to:
+                matches = false
+            end
+        end
+        if matches is true:
+            visible_transactions = omnisys.collections.list_push(visible_transactions, t)
+        end
+    end
+    visible_count = omnisys.core.length(visible_transactions)
+    visible_total = 0.0
+    for t in visible_transactions:
+        visible_total = visible_total + tx_amount(t)
+    end
+    if visible_count is 0:
+        empty_notice = "No transactions match the current filters. Add one or clear the filters."
+        empty_notice_display = "block"
+    else:
+        empty_notice = ""
+        empty_notice_display = "none"
+    end
+    balance_display = omnisys.core.round(balance * 100) / 100
+    if omnisys.core.length(visible_transactions) > 0:
+        r0_date = tx_date(omnisys.collections.list_get(visible_transactions, 0))
+        r0_category = tx_category(omnisys.collections.list_get(visible_transactions, 0))
+        r0_amount = omnisys.core.round(tx_amount(omnisys.collections.list_get(visible_transactions, 0)) * 100) / 100
+        r0_desc = tx_description(omnisys.collections.list_get(visible_transactions, 0))
+    else:
+        r0_date = ""
+        r0_category = ""
+        r0_amount = 0
+        r0_desc = ""
+    end
+    if omnisys.core.length(visible_transactions) > 1:
+        r1_date = tx_date(omnisys.collections.list_get(visible_transactions, 1))
+        r1_category = tx_category(omnisys.collections.list_get(visible_transactions, 1))
+        r1_amount = omnisys.core.round(tx_amount(omnisys.collections.list_get(visible_transactions, 1)) * 100) / 100
+        r1_desc = tx_description(omnisys.collections.list_get(visible_transactions, 1))
+    else:
+        r1_date = ""
+        r1_category = ""
+        r1_amount = 0
+        r1_desc = ""
+    end
+    if omnisys.core.length(visible_transactions) > 2:
+        r2_date = tx_date(omnisys.collections.list_get(visible_transactions, 2))
+        r2_category = tx_category(omnisys.collections.list_get(visible_transactions, 2))
+        r2_amount = omnisys.core.round(tx_amount(omnisys.collections.list_get(visible_transactions, 2)) * 100) / 100
+        r2_desc = tx_description(omnisys.collections.list_get(visible_transactions, 2))
+    else:
+        r2_date = ""
+        r2_category = ""
+        r2_amount = 0
+        r2_desc = ""
+    end
+    if omnisys.core.length(visible_transactions) > 3:
+        r3_date = tx_date(omnisys.collections.list_get(visible_transactions, 3))
+        r3_category = tx_category(omnisys.collections.list_get(visible_transactions, 3))
+        r3_amount = omnisys.core.round(tx_amount(omnisys.collections.list_get(visible_transactions, 3)) * 100) / 100
+        r3_desc = tx_description(omnisys.collections.list_get(visible_transactions, 3))
+    else:
+        r3_date = ""
+        r3_category = ""
+        r3_amount = 0
+        r3_desc = ""
+    end
+    if omnisys.core.length(visible_transactions) > 4:
+        r4_date = tx_date(omnisys.collections.list_get(visible_transactions, 4))
+        r4_category = tx_category(omnisys.collections.list_get(visible_transactions, 4))
+        r4_amount = omnisys.core.round(tx_amount(omnisys.collections.list_get(visible_transactions, 4)) * 100) / 100
+        r4_desc = tx_description(omnisys.collections.list_get(visible_transactions, 4))
+    else:
+        r4_date = ""
+        r4_category = ""
+        r4_amount = 0
+        r4_desc = ""
+    end
+    if omnisys.core.length(visible_transactions) > 5:
+        r5_date = tx_date(omnisys.collections.list_get(visible_transactions, 5))
+        r5_category = tx_category(omnisys.collections.list_get(visible_transactions, 5))
+        r5_amount = omnisys.core.round(tx_amount(omnisys.collections.list_get(visible_transactions, 5)) * 100) / 100
+        r5_desc = tx_description(omnisys.collections.list_get(visible_transactions, 5))
+    else:
+        r5_date = ""
+        r5_category = ""
+        r5_amount = 0
+        r5_desc = ""
+    end
+    cat_names = []
+    cat_totals = []
+    for t in transactions:
+        if omnisys.collections.list_contains(cat_names, tx_category(t)):
+            ci = omnisys.collections.list_index_of(cat_names, tx_category(t))
+            cat_totals = omnisys.collections.list_set(cat_totals, ci, omnisys.collections.list_get(cat_totals, ci) + tx_amount(t))
+        else:
+            cat_names = omnisys.collections.list_push(cat_names, tx_category(t))
+            cat_totals = omnisys.collections.list_push(cat_totals, tx_amount(t))
+        end
+    end
+    if omnisys.core.length(cat_names) > 0:
+        cat_name_0 = omnisys.collections.list_get(cat_names, 0)
+        cat_total_0 = omnisys.core.round(omnisys.collections.list_get(cat_totals, 0) * 100) / 100
+    else:
+        cat_name_0 = ""
+        cat_total_0 = 0
+    end
+    if omnisys.core.length(cat_names) > 1:
+        cat_name_1 = omnisys.collections.list_get(cat_names, 1)
+        cat_total_1 = omnisys.core.round(omnisys.collections.list_get(cat_totals, 1) * 100) / 100
+    else:
+        cat_name_1 = ""
+        cat_total_1 = 0
+    end
+    if omnisys.core.length(cat_names) > 2:
+        cat_name_2 = omnisys.collections.list_get(cat_names, 2)
+        cat_total_2 = omnisys.core.round(omnisys.collections.list_get(cat_totals, 2) * 100) / 100
+    else:
+        cat_name_2 = ""
+        cat_total_2 = 0
+    end
+    if omnisys.core.length(cat_names) > 3:
+        cat_name_3 = omnisys.collections.list_get(cat_names, 3)
+        cat_total_3 = omnisys.core.round(omnisys.collections.list_get(cat_totals, 3) * 100) / 100
+    else:
+        cat_name_3 = ""
+        cat_total_3 = 0
+    end
+    if view is "overview":
+        overview_display = "block"
+        transactions_display = "none"
+        breakdown_display = "none"
+        nav_overview_weight = "bold"
+        nav_transactions_weight = "normal"
+        nav_breakdown_weight = "normal"
+    end
+    if view is "transactions":
+        overview_display = "none"
+        transactions_display = "block"
+        breakdown_display = "none"
+        nav_overview_weight = "normal"
+        nav_transactions_weight = "bold"
+        nav_breakdown_weight = "normal"
+    end
+    if view is "breakdown":
+        overview_display = "none"
+        transactions_display = "none"
+        breakdown_display = "block"
+        nav_overview_weight = "normal"
+        nav_transactions_weight = "normal"
+        nav_breakdown_weight = "bold"
+    end
+    if error_message is "":
+        error_display = "none"
+    else:
+        error_display = "block"
+    end
+    if notice is "":
+        notice_display = "none"
+    else:
+        notice_display = "block"
+    end
+end
+
+fn go_overview:
+    writes view
+    view = "overview"
+    recompute()
+end
+
+fn go_transactions:
+    writes view
+    view = "transactions"
+    recompute()
+end
+
+fn go_breakdown:
+    writes view
+    view = "breakdown"
+    recompute()
+end
+
+fn apply_category_filter(category: Text) -> None:
+    writes filter_category
+    filter_category = category
+    recompute()
+end
+
+fn apply_date_filter(from: Text, to: Text) -> None:
+    writes filter_from filter_to
+    filter_from = from
+    filter_to = to
+    recompute()
+end
+
+fn clear_filters:
+    writes filter_category filter_from filter_to
+    filter_category = ""
+    filter_from = ""
+    filter_to = ""
+    recompute()
+end
+
+fn add_demo_income:
+    writes error_message notice
+    add_transaction(1500.0, "Salary", "2025", "11", "15", "Paycheck")
+end
+
+fn add_demo_coffee:
+    writes error_message notice
+    add_transaction(4.5, "Food", "2025", "11", "06", "Latte")
+end
+
+fn try_invalid_amount:
+    writes error_message notice
+    add_transaction(0 - 10.0, "Food", "2025", "11", "20", "Invalid")
+end
+
+fn try_invalid_date:
+    writes error_message notice
+    add_transaction(10.0, "Food", "2025", "13", "01", "Invalid")
+end
+
+fn try_empty_category:
+    writes error_message notice
+    add_transaction(10.0, "", "2025", "11", "20", "Invalid")
+end
+
+fn filter_food:
+    writes filter_category
+    apply_category_filter("Food")
+end
+
+fn filter_income:
+    writes filter_category
+    apply_category_filter("Income")
+end
+
+fn filter_this_month:
+    writes filter_from filter_to
+    apply_date_filter("2025-11-01", "2025-11-30")
+end
+
+UI:
+<div style="max-width:760px; margin:0 auto; font-family:sans-serif;">
+  <div style="background:#1e3a5f; color:#fff; padding:14px 18px;">
+    <h2 style="margin:0;">Personal Finance Dashboard</h2>
+    <p style="margin:4px 0 0; font-size:12px;">Live-link demo: every action re-renders once at block end (render #{render_count}).</p>
+  </div>
+  <div style="padding:8px 0; background:#eef2f7;">
+    <button style="font-weight:{nav_overview_weight}; margin:0 4px;" click="go_overview">Overview</button>
+    <button style="font-weight:{nav_transactions_weight}; margin:0 4px;" click="go_transactions">Transactions</button>
+    <button style="font-weight:{nav_breakdown_weight}; margin:0 4px;" click="go_breakdown">Breakdown</button>
+  </div>
+  <div style="display:{error_display}; padding:10px; background:#fdecea; border:1px solid #c0392b; border-radius:4px; margin:10px 0;">
+    <b>Error:</b> {error_message}
+  </div>
+  <div style="display:{notice_display}; padding:10px; background:#e8f5e9; border:1px solid #27ae60; border-radius:4px; margin:10px 0;">
+    {notice}
+  </div>
+
+  <div style="display:{overview_display}; padding:10px;">
+    <h3>Overview</h3>
+    <p>Account balance: <b>${balance_display}</b></p>
+    <p>Transactions recorded: {total_count}</p>
+    <p>Visible after filters: {visible_count}</p>
+    <h4>Spending by category (all-time)</h4>
+    <p>Food: {cat_total_0}</p>
+    <p>Rent: {cat_total_1}</p>
+    <p>Utilities: {cat_total_2}</p>
+    <p>Income: {cat_total_3}</p>
+  </div>
+
+  <div style="display:{transactions_display}; padding:10px;">
+    <h3>Add transaction</h3>
+    <p style="font-size:12px; color:#555;">Form widgets are not yet wired to the reactive store (the language has no DOM read path). Use the demo buttons to exercise add + validation.</p>
+    <form>
+      <input type="text" placeholder="Amount" />
+      <input type="text" placeholder="Category" />
+      <input type="text" placeholder="Year" />
+      <input type="text" placeholder="Month" />
+      <input type="text" placeholder="Day" />
+      <input type="text" placeholder="Description" />
+    </form>
+    <div style="padding:4px 0;">
+      <button click="add_demo_income">Add demo income (valid)</button>
+      <button click="add_demo_coffee">Add demo coffee (valid)</button>
+      <button click="try_invalid_amount">Try invalid amount</button>
+      <button click="try_invalid_date">Try invalid date</button>
+      <button click="try_empty_category">Try empty category</button>
+    </div>
+
+    <h3>Filters</h3>
+    <div style="padding:4px 0;">
+      <button click="filter_food">Category: Food</button>
+      <button click="filter_income">Category: Income</button>
+      <button click="filter_this_month">This month (Nov 2025)</button>
+      <button click="clear_filters">Clear filters</button>
+    </div>
+    <p>Filter: category={filter_category} from={filter_from} to={filter_to} — {visible_count} rows, sum {visible_total}</p>
+    <div style="display:{empty_notice_display}; padding:10px; background:#fff3cd; border:1px solid #f0ad4e; border-radius:4px; margin:6px 0;">{empty_notice}</div>
+    <table border="1" cellspacing="0" cellpadding="5" style="width:100%; border-collapse:collapse;">
+      <tr style="background:#dfe6ee;"><th>#</th><th>Date</th><th>Category</th><th>Amount</th><th>Description</th></tr>
+      <tr><td>1</td><td>{r0_date}</td><td>{r0_category}</td><td>{r0_amount}</td><td>{r0_desc}</td></tr>
+      <tr><td>2</td><td>{r1_date}</td><td>{r1_category}</td><td>{r1_amount}</td><td>{r1_desc}</td></tr>
+      <tr><td>3</td><td>{r2_date}</td><td>{r2_category}</td><td>{r2_amount}</td><td>{r2_desc}</td></tr>
+      <tr><td>4</td><td>{r3_date}</td><td>{r3_category}</td><td>{r3_amount}</td><td>{r3_desc}</td></tr>
+      <tr><td>5</td><td>{r4_date}</td><td>{r4_category}</td><td>{r4_amount}</td><td>{r4_desc}</td></tr>
+      <tr><td>6</td><td>{r5_date}</td><td>{r5_category}</td><td>{r5_amount}</td><td>{r5_desc}</td></tr>
+    </table>
+  </div>
+
+  <div style="display:{breakdown_display}; padding:10px;">
+    <h3>Category breakdown</h3>
+    <table border="1" cellspacing="0" cellpadding="5" style="width:60%; border-collapse:collapse;">
+      <tr style="background:#dfe6ee;"><th>Category</th><th>Total</th></tr>
+      <tr><td>{cat_name_0}</td><td>{cat_total_0}</td></tr>
+      <tr><td>{cat_name_1}</td><td>{cat_total_1}</td></tr>
+      <tr><td>{cat_name_2}</td><td>{cat_total_2}</td></tr>
+      <tr><td>{cat_name_3}</td><td>{cat_total_3}</td></tr>
+    </table>
+    <p style="font-size:12px; color:#555;">Breakdown lists up to 4 categories (static-capacity table).</p>
+  </div>
+</div>
+end

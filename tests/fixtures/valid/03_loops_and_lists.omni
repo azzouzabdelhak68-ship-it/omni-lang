@@ -1,5 +1,7 @@
 fn process(items: List) -> Number:
+    reads total
     writes log
+    writes total
     total = 0
     for n in items:
         if n greater than 10:

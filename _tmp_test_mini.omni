@@ -1,0 +1,14 @@
+import OMNISYS.core
+import OMNISYS.collections
+type VideoMeta = { duration: Number, resolution: Text, codec: Text, bitrate: Number }
+fn clamp_value(v: Number) -> Number:
+    if v > 255:
+        return 255
+    if v < 0:
+        return 0
+    return v
+end
+
+when app starts:
+    show "hello"
+end

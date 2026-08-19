@@ -1,0 +1,31 @@
+import OMNISYS.platform
+import OMNISYS.db
+
+last_stamp = 0
+
+fn capture_first(row: MovRow) -> Boolean:
+    last_stamp = row.ts
+    return row.qty is 3
+end
+
+fn stamp_it() -> Number:
+    uses database
+    t = OMNISYS.db.create_db("x")
+    tbl = OMNISYS.db.create_table(t, "mov", MovSchema(qty="Number", ts="Number"))
+    OMNISYS.db.insert(tbl, MovRow(qty=3, ts=OMNISYS.platform.now()))
+    OMNISYS.db.insert(tbl, MovRow(qty=0-2, ts=OMNISYS.platform.now()))
+    rows = OMNISYS.db.select(tbl)
+    show rows
+    first = OMNISYS.db.select(tbl, capture_first)
+    show last_stamp
+    return OMNISYS.platform.now()
+end
+
+type MovSchema = { qty: Text, ts: Text }
+type MovRow = { qty: Number, ts: Number }
+
+when app starts:
+    s = stamp_it()
+    show s
+    show "done"
+end

@@ -41,7 +41,7 @@ global.console = Object.assign({}, console, {
 });
 global.sim = createRuntime().sim;
 global.document = {
-  getElementById: () => ({ innerHTML: "" }),
+  getElementById: () => ({ innerHTML: "", addEventListener: () => {} }),
   querySelectorAll: () => [],
 };
 global.window = new Proxy({}, { get: () => () => {} });

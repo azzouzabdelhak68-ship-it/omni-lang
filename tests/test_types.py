@@ -10,7 +10,7 @@ from omni_compiler.parser import parse
 
 
 def test_lexer_type_keyword():
-    tokens = tokenize("type Person = { name: Text }")
+    tokens = tokenize('type Person = { name: Text }')
     types = [t.type for t in tokens]
     assert TokenType.TYPE in types
     assert TokenType.LBRACE in types
@@ -25,9 +25,9 @@ type Person = { name: Text, age: Number }
     ast = parse(tokens)
     assert len(ast.types) == 1
     t = ast.types[0]
-    assert t.name == "Person"
-    assert t.fields["name"] == "Text"
-    assert t.fields["age"] == "Number"
+    assert t.name == 'Person'
+    assert t.fields['name'] == 'Text'
+    assert t.fields['age'] == 'Number'
 
 
 def test_parse_nested_type():
@@ -37,9 +37,9 @@ type Person = { name: Text, address: Address }
 """
     tokens = tokenize(code)
     ast = parse(tokens)
-    assert len(ast.types) == len(["Address", "Person"])
+    assert len(ast.types) == len(['Address', 'Person'])
     person = ast.types[1]
-    assert person.fields["address"] == "Address"
+    assert person.fields['address'] == 'Address'
 
 
 def test_parse_field_access():
@@ -53,10 +53,10 @@ end
     ast = parse(tokens)
     body = ast.app_block.body
     field_stmt = body[1]
-    assert field_stmt.kind == "assignment"
-    assert field_stmt.expr.kind == "field_access"
-    assert field_stmt.expr.object.name == "p"
-    assert field_stmt.expr.field == "name"
+    assert field_stmt.kind == 'assignment'
+    assert field_stmt.expr.kind == 'field_access'
+    assert field_stmt.expr.object.name == 'p'
+    assert field_stmt.expr.field == 'name'
 
 
 def test_parse_struct_literal_constructor():
@@ -69,10 +69,10 @@ end
     ast = parse(tokens)
     body = ast.app_block.body
     constructor = body[0].expr
-    assert constructor.kind == "struct_construct"
-    assert constructor.name == "Person"
-    assert "name" in constructor.args
-    assert "age" in constructor.args
+    assert constructor.kind == 'struct_construct'
+    assert constructor.name == 'Person'
+    assert 'name' in constructor.args
+    assert 'age' in constructor.args
 
 
 def test_checker_custom_type_registered():
@@ -82,9 +82,9 @@ type Person = { name: Text, age: Number }
     tokens = tokenize(code)
     ast = parse(tokens)
     symbol_table = analyze(ast)
-    sym = symbol_table.inspect_symbol("Person")
+    sym = symbol_table.inspect_symbol('Person')
     assert sym is not None
-    assert sym["kind"] == "type"
+    assert sym['kind'] == 'type'
 
 
 def test_checker_field_access_valid():
@@ -115,7 +115,7 @@ end
     ast = parse(tokens)
     with pytest.raises(Exception) as excinfo:
         analyze(ast)
-    assert "field" in str(excinfo.value).lower() or "nonexistent" in str(excinfo.value).lower()
+    assert 'field' in str(excinfo.value).lower() or 'nonexistent' in str(excinfo.value).lower()
 
 
 def test_checker_field_access_on_non_struct_fails():
@@ -131,7 +131,7 @@ end
     ast = parse(tokens)
     with pytest.raises(Exception) as excinfo:
         analyze(ast)
-    assert "field" in str(excinfo.value).lower() or "struct" in str(excinfo.value).lower()
+    assert 'field' in str(excinfo.value).lower() or 'struct' in str(excinfo.value).lower()
 
 
 def test_checker_nested_field_access():
@@ -161,7 +161,7 @@ end
     ast = parse(tokens)
     with pytest.raises(Exception) as excinfo:
         analyze(ast)
-    assert "age" in str(excinfo.value) or "field" in str(excinfo.value).lower()
+    assert 'age' in str(excinfo.value) or 'field' in str(excinfo.value).lower()
 
 
 def test_checker_constructor_unknown_field_fails():
@@ -176,7 +176,7 @@ end
     ast = parse(tokens)
     with pytest.raises(Exception) as excinfo:
         analyze(ast)
-    assert "bogus" in str(excinfo.value) or "field" in str(excinfo.value).lower()
+    assert 'bogus' in str(excinfo.value) or 'field' in str(excinfo.value).lower()
 
 
 def test_mir_type_declarations():
@@ -187,9 +187,9 @@ type Person = { name: Text, age: Number }
     ast = parse(tokens)
     symbol_table = analyze(ast)
     mir = to_mir(ast, symbol_table)
-    assert "Person" in mir.types
-    assert mir.types["Person"]["fields"]["name"] == "Text"
-    assert mir.types["Person"]["fields"]["age"] == "Number"
+    assert 'Person' in mir.types
+    assert mir.types['Person']['fields']['name'] == 'Text'
+    assert mir.types['Person']['fields']['age'] == 'Number'
 
 
 def test_mir_json_roundtrip_with_types():
@@ -201,9 +201,9 @@ type Person = { name: Text, age: Number }
     symbol_table = analyze(ast)
     mir = to_mir(ast, symbol_table)
     json_str = mir.to_json()
-    assert "Person" in json_str
+    assert 'Person' in json_str
     mir2 = mir.from_json(json_str)
-    assert mir2.types["Person"]["fields"]["name"] == "Text"
+    assert mir2.types['Person']['fields']['name'] == 'Text'
 
 
 def test_emitter_ts_interface():
@@ -215,9 +215,9 @@ type Person = { name: Text, age: Number }
     symbol_table = analyze(ast)
     mir = to_mir(ast, symbol_table)
     js_code = emit_js(mir)
-    assert "interface Person" in js_code
-    assert "name" in js_code
-    assert "age" in js_code
+    assert 'interface Person' in js_code
+    assert 'name' in js_code
+    assert 'age' in js_code
 
 
 def test_emitter_struct_constructor():
@@ -233,9 +233,9 @@ end
     symbol_table = analyze(ast)
     mir = to_mir(ast, symbol_table)
     js_code = emit_js(mir)
-    assert "name:" in js_code
+    assert 'name:' in js_code
     assert '"Ada"' in js_code
-    assert "36" in js_code
+    assert '36' in js_code
 
 
 def test_emitter_field_access():
@@ -252,4 +252,4 @@ end
     symbol_table = analyze(ast)
     mir = to_mir(ast, symbol_table)
     js_code = emit_js(mir)
-    assert "p.name" in js_code
+    assert 'p.name' in js_code

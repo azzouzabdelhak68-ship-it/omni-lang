@@ -1,0 +1,26 @@
+import OMNISYS.collections
+import OMNISYS.core
+
+fn contains_substring(text: Text, substring: Text) -> Boolean:
+    pure
+    text_len = omnisys.core.length(text)
+    sub_len = omnisys.core.length(substring)
+    if text_len less than sub_len:
+        return false
+    end
+    
+    i = 0
+    max_i = text_len - sub_len
+    while i less or equal max_i:
+        slice = omnisys.collections.list_slice(text, i, i + sub_len)
+        if slice is substring:
+            return true
+        end
+        i = i + 1
+    end
+    return false
+end
+
+when app starts:
+    show "test"
+end

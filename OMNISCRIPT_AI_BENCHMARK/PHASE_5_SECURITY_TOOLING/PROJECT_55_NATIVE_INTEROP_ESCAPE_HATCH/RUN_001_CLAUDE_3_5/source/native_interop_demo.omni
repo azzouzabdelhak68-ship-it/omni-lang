@@ -1,0 +1,240 @@
+# Native Interop & Escape Hatch Demo — Project 5.5
+# Demonstrates FFI/native interop mechanisms while preserving type and safety boundaries.
+
+import OMNISYS.core
+import OMNISYS.platform
+import OMNISYS.collections
+import OMNISYS.error
+import OMNISYS.serde
+
+# =============================================================================
+# PORTABLE ABSTRACTION LAYER
+# =============================================================================
+# These functions use only the portable OMNISYS.platform API and declare
+# capabilities explicitly. They work on all backends (JS, native, WASM).
+
+fn portable_os_name() -> Text:
+    uses process
+    return omnisys.platform.os()
+end
+
+fn portable_arch_name() -> Text:
+    uses process
+    return omnisys.platform.arch()
+end
+
+fn portable_now() -> Number:
+    pure
+    return omnisys.platform.now()
+end
+
+fn portable_capabilities() -> List:
+    uses process
+    return omnisys.platform.capabilities()
+end
+
+fn portable_env_var(name: Text) -> Text:
+    uses process
+    return omnisys.platform.env(name)
+end
+
+# =============================================================================
+# ESCAPE HATCH: NATIVE PROCESS EXECUTION
+# =============================================================================
+# This demonstrates the native interop escape hatch pattern.
+# On JS lane: returns a structured error message (not available)
+# On native lane (C/WASM): would call into native FFI
+
+fn escape_execute_command(command: Text) -> Text:
+    uses process
+    # Portable fallback: check if we have the capability
+    caps = omnisys.platform.capabilities()
+    has_process = omnisys.collections.list_contains(caps, "process")
+    
+    if not has_process:
+        return "ERROR: FFI_UNAVAILABLE - Native process execution not available on this backend"
+    end
+    
+    # In a real implementation with native interop:
+    # This would call into native code via FFI
+    # For now, we simulate by returning platform info as a demonstration
+    info = omnisys.platform.info()
+    info_text = omnisys.serde.json_encode(info)
+    
+    return "OK: Simulated native execution: " + info_text
+end
+
+# =============================================================================
+# ESCAPE HATCH: NATIVE MEMORY/CPU INFO (NOT IN PORTABLE API)
+# =============================================================================
+# This demonstrates accessing backend-specific functionality that
+# the portable core doesn't expose.
+
+fn escape_get_system_metrics() -> Text:
+    uses process
+    # Check for GPU capability as an example of backend-specific escape
+    caps = omnisys.platform.capabilities()
+    has_gpu = omnisys.collections.list_contains(caps, "GPU")
+    has_graphics = omnisys.collections.list_contains(caps, "graphics")
+    
+    # Build metrics using portable API + capability detection
+    metrics_list = []
+    metrics_list = omnisys.collections.list_push(metrics_list, "os")
+    metrics_list = omnisys.collections.list_push(metrics_list, omnisys.platform.os())
+    metrics_list = omnisys.collections.list_push(metrics_list, "arch")
+    metrics_list = omnisys.collections.list_push(metrics_list, omnisys.platform.arch())
+    metrics_list = omnisys.collections.list_push(metrics_list, "has_process")
+    metrics_list = omnisys.collections.list_push(metrics_list, omnisys.collections.list_contains(caps, "process"))
+    metrics_list = omnisys.collections.list_push(metrics_list, "has_gpu")
+    metrics_list = omnisys.collections.list_push(metrics_list, has_gpu)
+    metrics_list = omnisys.collections.list_push(metrics_list, "has_graphics")
+    metrics_list = omnisys.collections.list_push(metrics_list, has_graphics)
+    
+    metrics_text = omnisys.serde.json_encode(metrics_list)
+    return "OK: " + metrics_text
+end
+
+# =============================================================================
+# ESCAPE HATCH: RAW GPU COMPUTE ACCESS (BACKEND-SPECIFIC)
+# =============================================================================
+# Demonstrates the GPU escape hatch pattern from the architecture docs.
+
+fn escape_gpu_compute(kernel_name: Text, input_data: List) -> Text:
+    uses GPU
+    
+    # Check if GPU capability is available
+    caps = omnisys.platform.capabilities()
+    has_gpu = omnisys.collections.list_contains(caps, "GPU")
+    
+    if not has_gpu:
+        return "ERROR: GPU_UNAVAILABLE - GPU compute escape not available on this backend"
+    end
+    
+    # Portable GPU path via OMNISYS.gpu (if available)
+    # This would be the portable core; escapes provide raw access
+    # For now, simulate the boundary crossing
+    input_json = omnisys.serde.json_encode(input_data)
+    return "OK: GPU kernel '" + kernel_name + "' would execute with input: " + input_json
+end
+
+# =============================================================================
+# TYPE-SAFE BOUNDARY CROSSING: SERIALIZATION ROUND-TRIP
+# =============================================================================
+# Demonstrates preserving types across the native boundary.
+
+type InteropMessage = { id: Number, payload: Text, timestamp: Number }
+
+fn escape_serialize_message(msg: InteropMessage) -> Text:
+    pure
+    # Serialize to JSON for boundary crossing
+    # Pass the struct directly - json_encode handles struct types
+    json_text = omnisys.serde.json_encode(msg)
+    return "OK: " + json_text
+end
+
+fn escape_deserialize_message(json_text: Text) -> Text:
+    pure
+    # Deserialize from JSON (with validation)
+    decoded = omnisys.serde.json_decode(json_text)
+    # In a real implementation, validate structure
+    # Note: decoded is 'unknown' type, field access requires type assertion
+    return "OK: Deserialized message (validation would happen here)"
+end
+
+# =============================================================================
+# ERROR PROPAGATION: STRUCTURED ERRORS ACROSS BOUNDARY
+# =============================================================================
+# Demonstrates propagating native failures as structured errors.
+
+fn escape_risky_operation(should_fail: Boolean) -> Text:
+    uses process
+    
+    if should_fail:
+        # Simulate a native error that gets caught and converted
+        return "ERROR: NATIVE_FAILURE - Simulated native operation failure"
+    end
+    
+    return "OK: Operation completed successfully"
+end
+
+# =============================================================================
+# HELPER: CHECK RESULT STATUS
+# =============================================================================
+
+fn is_ok(result: Text) -> Boolean:
+    pure
+    # Simple check: result starts with "OK:"
+    # In a real implementation, use proper result types
+    return omnisys.serde.json_encode(result)  # placeholder - simplified
+    # For now, use a simple text check
+    # Note: OmniScript doesn't have string.starts_with, so we use a workaround
+    # We'll check inline in the entry point
+end
+
+# =============================================================================
+# ENTRY POINT: DEMONSTRATE ALL ESCAPE HATCH PATTERNS
+# =============================================================================
+
+when app starts:
+    # --- Portable layer works everywhere ---
+    show "=== Portable Abstraction Layer ==="
+    os_name = portable_os_name()
+    show "OS: " + os_name
+    
+    arch_name = portable_arch_name()
+    show "Arch: " + arch_name
+    
+    now = portable_now()
+    show "Timestamp: " + now
+    
+    caps = portable_capabilities()
+    show "Capabilities: " + omnisys.serde.json_encode(caps)
+    
+    # Try to get HOME env var (may fail gracefully)
+    home = portable_env_var("HOME")
+    if omnisys.core.is_empty(home):
+        home = "undefined"
+    end
+    show "HOME: " + home
+    
+    # --- Escape Hatch 1: Process Execution ---
+    show ""
+    show "=== Escape Hatch: Process Execution ==="
+    cmd_result = escape_execute_command("echo hello")
+    show "Result: " + cmd_result
+    
+    # --- Escape Hatch 2: System Metrics ---
+    show ""
+    show "=== Escape Hatch: System Metrics ==="
+    metrics_result = escape_get_system_metrics()
+    show "Result: " + metrics_result
+    
+    # --- Escape Hatch 3: GPU Compute ---
+    show ""
+    show "=== Escape Hatch: GPU Compute ==="
+    input_list = [1.0, 2.0, 3.0, 4.0]
+    gpu_result = escape_gpu_compute("matrix_multiply", input_list)
+    show "Result: " + gpu_result
+    
+    # --- Type-Safe Boundary Crossing ---
+    show ""
+    show "=== Type-Safe Boundary Crossing ==="
+    msg = InteropMessage(id = 42, payload = "test message", timestamp = portable_now())
+    ser_result = escape_serialize_message(msg)
+    show "Serialized: " + ser_result
+    deser_result = escape_deserialize_message(ser_result)
+    show "Deserialized: " + deser_result
+    
+    # --- Error Propagation ---
+    show ""
+    show "=== Error Propagation Across Boundary ==="
+    success = escape_risky_operation(false)
+    show "Success case: " + success
+    
+    failure = escape_risky_operation(true)
+    show "Failure case: " + failure
+    
+    show ""
+    show "=== Native Interop Demo Complete ==="
+    show "Summary: Portable layer works; escape hatches show backend capabilities"
+end
