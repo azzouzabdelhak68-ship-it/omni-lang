@@ -12,6 +12,12 @@ from typing import Any
 
 import click
 
+from omni_compiler.checker import DiagnosticError, analyze
+from omni_compiler.emitter import emit_js
+from omni_compiler.lexer import is_agent_mode, tokenize
+from omni_compiler.mir import MIRModule, to_mir
+from omni_compiler.parser import parse
+
 # Lazy imports for heavy backends - only loaded when needed
 _c_emitter = None
 _wasm_emitter = None
@@ -19,36 +25,37 @@ _formatter = None
 
 
 def _get_c_emitter() -> Callable[[Any], str]:
-    global _c_emitter
+    global _c_emitter  # noqa: PLW0603
     if _c_emitter is None:
-        from omni_compiler.c_emitter import emit_c as _emit_c
+        from omni_compiler.c_emitter import emit_c as _emit_c  # noqa: PLC0415
         _c_emitter = _emit_c
     return _c_emitter
 
 
 def _get_wasm_emitter() -> tuple[Callable[..., str], Callable[[str], str]]:
-    global _wasm_emitter
+    global _wasm_emitter  # noqa: PLW0603
     if _wasm_emitter is None:
-        from omni_compiler.wasm_emitter import emit_wasm as _emit_wasm
-        from omni_compiler.wasm_emitter import wasm_build_command as _wasm_build_command
+        from omni_compiler.wasm_emitter import (  # noqa: PLC0415
+            emit_wasm as _emit_wasm,
+        )
+        from omni_compiler.wasm_emitter import (  # noqa: PLC0415
+            wasm_build_command as _wasm_build_command,
+        )
         _wasm_emitter = (_emit_wasm, _wasm_build_command)
     return _wasm_emitter
 
 
 def _get_formatter() -> tuple[type, Callable[..., Any]]:
-    global _formatter
+    global _formatter  # noqa: PLW0603
     if _formatter is None:
-        from omni_compiler.formatter import FormatConfig as _FormatConfig
-        from omni_compiler.formatter import format_file as _format_file
+        from omni_compiler.formatter import (  # noqa: PLC0415
+            FormatConfig as _FormatConfig,
+        )
+        from omni_compiler.formatter import (  # noqa: PLC0415
+            format_file as _format_file,
+        )
         _formatter = (_FormatConfig, _format_file)
     return _formatter
-
-
-from omni_compiler.checker import DiagnosticError, analyze
-from omni_compiler.emitter import emit_js
-from omni_compiler.lexer import is_agent_mode, tokenize
-from omni_compiler.mir import MIRModule, to_mir
-from omni_compiler.parser import parse
 
 
 def _compile(file: Path, lang: str | None = None) -> tuple[Any, Any, MIRModule]:
@@ -551,8 +558,8 @@ def fmt(  # noqa: PLR0913, PLR0917
         click.echo('omni fmt: no files specified', err=True)
         sys.exit(1)
 
-    FormatConfig, format_file = _get_formatter()
-    config = FormatConfig(indent_size=indent, use_tabs=tabs)
+    format_config, format_file = _get_formatter()  # noqa: N806
+    config = format_config(indent_size=indent, use_tabs=tabs)
     any_changed = False
     any_error = False
 
