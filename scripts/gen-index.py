@@ -70,6 +70,21 @@ def generate() -> str:
             rel = readme.relative_to(DOCS).as_posix()
             lines.append(f"- [{folder}/README.md]({rel}) - directory index")
             lines.append("")
+
+        # Include all .md files in language folder (not just README)
+        if folder == "language":
+            language_docs = sorted(
+                p for p in (DOCS / "language").glob("*.md") if p.name != "README.md"
+            )
+            if language_docs:
+                lines.append("### Language Guides")
+                lines.append("")
+                for doc in language_docs:
+                    rel = doc.relative_to(DOCS).as_posix()
+                    title = _title_from_doc(doc)
+                    lines.append(f"- [{title}]({rel})")
+                lines.append("")
+
         if folder == "architecture":
             architecture_docs = sorted(
                 p for p in (DOCS / "architecture").glob("*.md") if p.name != "README.md"

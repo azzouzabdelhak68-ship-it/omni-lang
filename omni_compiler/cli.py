@@ -6,19 +6,49 @@ Commands: check, run, inspect, explain, build, verify, suggest, generate, trace,
 import contextlib
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import click
 
-from omni_compiler.c_emitter import emit_c
+# Lazy imports for heavy backends - only loaded when needed
+_c_emitter = None
+_wasm_emitter = None
+_formatter = None
+
+
+def _get_c_emitter() -> Callable[[Any], str]:
+    global _c_emitter
+    if _c_emitter is None:
+        from omni_compiler.c_emitter import emit_c as _emit_c
+        _c_emitter = _emit_c
+    return _c_emitter
+
+
+def _get_wasm_emitter() -> tuple[Callable[..., str], Callable[[str], str]]:
+    global _wasm_emitter
+    if _wasm_emitter is None:
+        from omni_compiler.wasm_emitter import emit_wasm as _emit_wasm
+        from omni_compiler.wasm_emitter import wasm_build_command as _wasm_build_command
+        _wasm_emitter = (_emit_wasm, _wasm_build_command)
+    return _wasm_emitter
+
+
+def _get_formatter() -> tuple[type, Callable[..., Any]]:
+    global _formatter
+    if _formatter is None:
+        from omni_compiler.formatter import FormatConfig as _FormatConfig
+        from omni_compiler.formatter import format_file as _format_file
+        _formatter = (_FormatConfig, _format_file)
+    return _formatter
+
+
 from omni_compiler.checker import DiagnosticError, analyze
 from omni_compiler.emitter import emit_js
-from omni_compiler.formatter import FormatConfig, format_file
 from omni_compiler.lexer import is_agent_mode, tokenize
 from omni_compiler.mir import MIRModule, to_mir
 from omni_compiler.parser import parse
-from omni_compiler.wasm_emitter import emit_wasm, wasm_build_command
 
 
 def _compile(file: Path, lang: str | None = None) -> tuple[Any, Any, MIRModule]:
@@ -355,7 +385,7 @@ def build(file: Path, target: str, output: Path | None, lang: str | None) -> Non
         out = output or file.with_suffix('.html')
     elif target == 'c':
         _reject_omnisys_on_native_target(target, mir)
-        content = emit_c(mir)
+        content = _get_c_emitter()(mir)
         out = output or file.with_suffix('.c')
     elif target == 'rust':
         _reject_omnisys_on_native_target(target, mir)
@@ -373,7 +403,8 @@ def build(file: Path, target: str, output: Path | None, lang: str | None) -> Non
     elif target in ('wasm-browser', 'wasm-wasi'):
         _reject_omnisys_on_native_target(target, mir)
         mode = 'browser' if target == 'wasm-browser' else 'wasi'
-        content = emit_wasm(mir, mode=mode)
+        emit_wasm_fn, wasm_build_cmd = _get_wasm_emitter()
+        content = emit_wasm_fn(mir, mode=mode)
         default_out = file.with_suffix('.html' if mode == 'browser' else '.c')
         out = output or default_out
     else:  # pragma: no cover - click restricts valid targets
@@ -383,7 +414,7 @@ def build(file: Path, target: str, output: Path | None, lang: str | None) -> Non
     out.write_text(content, encoding='utf-8')
     click.echo(f'omni build: wrote {out} (target={target})')
     if mode is not None:
-        click.echo(f'  {wasm_build_command(mode)}', err=True)
+        click.echo(f'  {wasm_build_cmd(mode)}', err=True)
     sys.exit(0)
 
 
@@ -520,6 +551,7 @@ def fmt(  # noqa: PLR0913, PLR0917
         click.echo('omni fmt: no files specified', err=True)
         sys.exit(1)
 
+    FormatConfig, format_file = _get_formatter()
     config = FormatConfig(indent_size=indent, use_tabs=tabs)
     any_changed = False
     any_error = False

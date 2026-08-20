@@ -80,7 +80,7 @@ import contextlib
 from dataclasses import dataclass
 from typing import Any
 
-import z3  # type: ignore[import-untyped]
+import z3  # type: ignore
 
 from omni_compiler.checker import SymbolTable
 from omni_compiler.parser import (

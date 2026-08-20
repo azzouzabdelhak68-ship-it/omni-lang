@@ -16,6 +16,10 @@ Generated navigation index for everything under `docs/`.
 
 - [language/README.md](language/README.md) - directory index
 
+### Language Guides
+
+- [OmniScript Tutorial](language/tutorial.md)
+
 
 ## Architecture
 

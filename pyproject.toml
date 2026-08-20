@@ -10,7 +10,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.1.0",
+    "z3-solver>=4.12.0",
 ]
+
+[project.scripts]
+omni = "omni_compiler.cli:cli"
 
 [project.optional-dependencies]
 dev = [
