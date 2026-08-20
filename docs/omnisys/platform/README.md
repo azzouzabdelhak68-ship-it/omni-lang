@@ -3,16 +3,20 @@
 ## Purpose
 
 Native platform APIs: OS integration for Windows, Linux, macOS, and mobile
-targets, plus device access (camera, microphone).
+targets. Device access (camera, microphone) is surfaced via `capabilities()`.
 
 ## Public API surface
 
 ```omni
 import OMNISYS.platform
 
+fn now() -> Number
 fn os() -> Text
-fn clipboard() -> Result
-fn camera_device() -> Result
+fn arch() -> Text
+fn env(key: Text, default: Text?) -> Text
+fn info() -> Map
+fn sleep_ms(ms: Number) -> Number
+fn capabilities() -> List
 ```
 
 ## Dependencies
@@ -21,17 +25,15 @@ fn camera_device() -> Result
 
 ## Effects/capabilities used
 
-- `uses camera`
-- `uses microphone`
 - `uses process`
 
 ## Status
 
-planned
+stable
 
 ## Open Questions
 
 - Feature detection for capability gating
 - Permission model integration with effects system
 
-<!-- CAPABILITIES: platform; camera; microphone; process -->
+<!-- CAPABILITIES: platform; process -->

@@ -1,0 +1,38 @@
+# Probe 10: struct with Map field, list of structs, json_encode, arithmetic
+import OMNISYS.collections
+import OMNISYS.serde
+
+type FileReport = { name: Text, lines: Number, tokens: Number, check: Map }
+
+fn build_entry(name: Text, lines: Number, tokens: Number, ok_flag: Boolean) -> FileReport:
+    pure
+    check_map = omnisys.collections.map_set({}, "ok", ok_flag)
+    return FileReport(name = name, lines = lines, tokens = tokens, check = check_map)
+end
+
+fn summarize(entries: List) -> Map:
+    pure
+    total_lines = 0
+    total_tokens = 0
+    for entry in entries:
+        total_lines = total_lines + entry.lines
+        total_tokens = total_tokens + entry.tokens
+    end
+    summary = omnisys.collections.map_set({}, "lines", total_lines)
+    summary = omnisys.collections.map_set(summary, "tokens", total_tokens)
+    return summary
+end
+
+when app starts:
+    app_entries = []
+    app_entries = omnisys.collections.list_push(app_entries, build_entry("a.omni", 10, 20, true))
+    app_entries = omnisys.collections.list_push(app_entries, build_entry("b.omni", 30, 40, false))
+    app_summary = summarize(app_entries)
+    app_report = omnisys.collections.map_set({}, "sources", app_entries)
+    app_report = omnisys.collections.map_set(app_report, "summary", app_summary)
+    app_json = omnisys.serde.json_encode(app_report)
+    show "json: " + app_json
+    app_first = omnisys.collections.list_get(app_entries, 0)
+    show "first lines: " + app_first.lines
+    show "first ok: " + app_first.check["ok"]
+end

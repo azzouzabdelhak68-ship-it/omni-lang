@@ -1,0 +1,483 @@
+# Distributed Actor Cluster — Project 6.2
+# Demonstrates node membership, clustering, message routing, failover,
+# and deterministic scheduling using the sim.actor runtime.
+#
+# Capability model:
+#   - sim.* (spawn, send, cluster, node, partition, heal, fail, restart, run,
+#     members, snapshot, status, deadletters, statistics) -> `uses network`
+#   - OMNISYS.collections (list, map operations)           -> `pure`
+#   - OMNISYS.core (show, type operations)                 -> `pure`
+#
+# All sim.* calls require `uses network` capability at function boundary.
+
+import OMNISYS.collections
+import OMNISYS.core
+
+# =============================================================================
+# ACTOR BEHAVIORS
+# =============================================================================
+
+# Counter actor: increments/decrements a numeric state
+fn counter_behavior(state: Number, msg: Text) -> Number:
+    pure
+    if msg is "inc":
+        return state + 1
+    end
+    if msg is "dec":
+        return state - 1
+    end
+    if msg is "get":
+        return state
+    end
+    return state
+end
+
+# Logger actor: records messages to a list in state
+fn logger_behavior(state: List, msg: Text) -> List:
+    pure
+    if msg is "get":
+        return state
+    end
+    return omnisys.collections.list_push(state, msg)
+end
+
+# Ping-pong actor: responds to "ping" with "pong" and tracks count
+fn pong_behavior(state: Number, msg: Text) -> Number:
+    pure
+    if msg is "ping":
+        return state + 1
+    end
+    if msg is "get_count":
+        return state
+    end
+    return state
+end
+
+# Forwarder actor: forwards messages to another actor (tests routing)
+fn forwarder_behavior(state: Map, msg: Text) -> Map:
+    pure
+    target = omnisys.collections.map_get(state, "target")
+    if omnisys.core.is_empty(target):
+        return state
+    end
+    # In a real system, we'd use sim.send here, but behaviors are pure
+    # So we just record the forward intent in state
+    forwards = omnisys.collections.map_get(state, "forwards")
+    if omnisys.core.is_empty(forwards):
+        forwards = []
+    end
+    new_forwards = omnisys.collections.list_push(forwards, {to: target, msg: msg})
+    return omnisys.collections.map_set(state, "forwards", new_forwards)
+end
+
+# Echo actor: echoes messages back to sender (tests sender())
+fn echo_behavior(state: Number, msg: Text) -> Number:
+    pure
+    return state + 1
+end
+
+# =============================================================================
+# HELPER FUNCTIONS (pure)
+# =============================================================================
+
+fn make_initial_logger_state() -> List:
+    pure
+    return []
+end
+
+fn make_initial_forwarder_state(target: Text) -> Map:
+    pure
+    return {target: target, forwards: []}
+end
+
+fn format_members(members: List) -> Text:
+    pure
+    return omnisys.collections.list_join(members, ", ")
+end
+
+fn format_stats(stats: Map) -> Text:
+    pure
+    return "sent=" + omnisys.collections.map_get(stats, "sent") + " delivered=" + omnisys.collections.map_get(stats, "delivered") + " redelivered=" + omnisys.collections.map_get(stats, "redelivered") + " dead=" + omnisys.collections.map_get(stats, "dead") + " crashed=" + omnisys.collections.map_get(stats, "crashed") + " restarts=" + omnisys.collections.map_get(stats, "restarts") + " failures=" + omnisys.collections.map_get(stats, "failures") + " partitions=" + omnisys.collections.map_get(stats, "partitions") + " heals=" + omnisys.collections.map_get(stats, "heals") + " steps=" + omnisys.collections.map_get(stats, "steps")
+end
+
+# =============================================================================
+# NETWORK OPERATIONS (require `uses network`)
+# =============================================================================
+
+fn create_cluster(name: Text) -> Text:
+    uses network
+    sim.cluster(name)
+    return "OK: cluster " + name + " created"
+end
+
+fn add_nodes(cluster_name: Text, node_ids: List) -> Text:
+    uses network
+    for node_id in node_ids:
+        sim.node(node_id)
+    end
+    return "OK: nodes added"
+end
+
+fn spawn_actors() -> Map:
+    uses network
+    # Spawn actors on different nodes
+    counter = sim.spawn("n1", "counter", counter_behavior, 0)
+    logger = sim.spawn("n2", "logger", logger_behavior, make_initial_logger_state())
+    pong = sim.spawn("n1", "pong", pong_behavior, 0)
+    echo = sim.spawn("n2", "echo", echo_behavior, 0)
+    return {counter: counter, logger: logger, pong: pong, echo: echo}
+end
+
+fn send_messages(actors: Map) -> Text:
+    uses network
+    counter = omnisys.collections.map_get(actors, "counter")
+    logger = omnisys.collections.map_get(actors, "logger")
+    pong = omnisys.collections.map_get(actors, "pong")
+    echo = omnisys.collections.map_get(actors, "echo")
+    
+    # Send multiple messages to test ordering
+    sim.send(counter, "inc")
+    sim.send(counter, "inc")
+    sim.send(counter, "inc")
+    sim.send(logger, "hello from n1")
+    sim.send(logger, "second message")
+    sim.send(pong, "ping")
+    sim.send(pong, "ping")
+    sim.send(echo, "echo this")
+    
+    return "OK: messages sent"
+end
+
+fn run_cluster() -> Text:
+    uses network
+    sim.run()
+    return "OK: cluster run complete"
+end
+
+fn run_cluster_steps(n: Number) -> Text:
+    uses network
+    sim.steps(n)
+    return "OK: " + omnisys.core.type_of(n) + " steps executed"
+end
+
+fn partition_nodes(a: Text, b: Text) -> Text:
+    uses network
+    sim.partition(a, b)
+    return "OK: partitioned " + a + " <-> " + b
+end
+
+fn heal_nodes(a: Text, b: Text) -> Text:
+    uses network
+    sim.heal(a, b)
+    return "OK: healed " + a + " <-> " + b
+end
+
+fn fail_node(node_id: Text) -> Text:
+    uses network
+    sim.fail(node_id)
+    return "OK: failed " + node_id
+end
+
+fn restart_node(node_id: Text) -> Text:
+    uses network
+    sim.restart(node_id)
+    return "OK: restarted " + node_id
+end
+
+fn get_members(node_id: Text) -> List:
+    uses network
+    return sim.members(node_id)
+end
+
+fn get_snapshot() -> Map:
+    uses network
+    return sim.snapshot()
+end
+
+fn show_snapshot(snap: Map) -> Text:
+    uses network
+    nodes = omnisys.collections.map_get(snap, "nodes")
+    show "=== CLUSTER SNAPSHOT ==="
+    for node in nodes:
+        node_id = omnisys.collections.map_get(node, "id")
+        alive = omnisys.collections.map_get(node, "alive")
+        actors = omnisys.collections.map_get(node, "actors")
+        show "Node: " + node_id + " (alive=" + omnisys.core.type_of(alive) + ")"
+        for actor in actors:
+            name = omnisys.collections.map_get(actor, "name")
+            a_state = omnisys.collections.map_get(actor, "state")
+            processed = omnisys.collections.map_get(actor, "processed")
+            show "  Actor: " + name + " state=" + omnisys.core.type_of(a_state) + " processed=" + omnisys.core.type_of(processed)
+        end
+    end
+    stats = omnisys.collections.map_get(snap, "stats")
+    show "Stats: sent=" + omnisys.collections.map_get(stats, "sent") + " delivered=" + omnisys.collections.map_get(stats, "delivered") + " dead=" + omnisys.collections.map_get(stats, "dead")
+    return "OK"
+end
+
+fn show_deadletters(dead: List) -> Text:
+    uses network
+    show "Total dead letters: " + omnisys.core.type_of(omnisys.core.length(dead))
+    for d in dead:
+        show "  Dead: from=" + omnisys.collections.map_get(d, "from") + " to=" + omnisys.collections.map_get(d, "to") + " reason=" + omnisys.collections.map_get(d, "reason")
+    end
+    return "OK"
+end
+
+fn show_status(status: Map) -> Text:
+    uses network
+    show "Cluster status:"
+    for node_id in ["stats.coordinator", "n1", "n2", "n3", "n4"]:
+        node_status = omnisys.collections.map_get(status, node_id)
+        if not omnisys.core.is_empty(node_status):
+            alive = omnisys.collections.map_get(node_status, "alive")
+            removed = omnisys.collections.map_get(node_status, "removed")
+            show "  " + node_id + ": alive=" + omnisys.core.type_of(alive) + " removed=" + omnisys.core.type_of(removed)
+        end
+    end
+    return "OK"
+end
+
+fn get_deadletters() -> List:
+    uses network
+    return sim.deadletters()
+end
+
+fn get_stats() -> Map:
+    uses network
+    return sim.stats()
+end
+
+fn get_status() -> Map:
+    uses network
+    return sim.status()
+end
+
+# =============================================================================
+# TEST SCENARIOS
+# =============================================================================
+
+# Scenario 1: Basic cluster with message passing
+fn scenario_basic() -> Text:
+    uses network
+    show "=== SCENARIO 1: Basic Cluster ==="
+    create_cluster("basic")
+    add_nodes("basic", ["n1", "n2"])
+    actors = spawn_actors()
+    send_messages(actors)
+    run_cluster()
+    snap = get_snapshot()
+    show_snapshot(snap)
+    stats = get_stats()
+    show "Stats: " + format_stats(stats)
+    return "SCENARIO 1 DONE"
+end
+
+# Scenario 2: Network partition and heal
+fn scenario_partition_heal() -> Text:
+    uses network
+    show "=== SCENARIO 2: Partition & Heal ==="
+    create_cluster("partition_demo")
+    add_nodes("partition_demo", ["n1", "n2"])
+    actors = spawn_actors()
+    
+    # Send some messages before partition
+    sim.send(omnisys.collections.map_get(actors, "counter"), "inc")
+    sim.send(omnisys.collections.map_get(actors, "logger"), "before partition")
+    run_cluster()
+    
+    # Partition coordinator from n2
+    partition_nodes("partition_demo.coordinator", "n2")
+    
+    # Send during partition (should be held, not dropped)
+    sim.send(omnisys.collections.map_get(actors, "logger"), "during partition")
+    sim.send(omnisys.collections.map_get(actors, "counter"), "inc")
+    run_cluster_steps(5)
+    
+    # Check dead letters during partition
+    dead = get_deadletters()
+    show "Dead letters during partition: " + omnisys.core.type_of(omnisys.core.length(dead))
+    
+    # Heal and drain
+    heal_nodes("partition_demo.coordinator", "n2")
+    run_cluster()
+    
+    snap = get_snapshot()
+    show_snapshot(snap)
+    return "SCENARIO 2 DONE"
+end
+
+# Scenario 3: Node failure and restart
+fn scenario_fail_restart() -> Text:
+    uses network
+    show "=== SCENARIO 3: Node Failure & Restart ==="
+    create_cluster("failover")
+    add_nodes("failover", ["n1", "n2", "n3"])
+    
+    # Spawn actors on all three nodes
+    counter = sim.spawn("n1", "counter", counter_behavior, 0)
+    logger = sim.spawn("n2", "logger", logger_behavior, make_initial_logger_state())
+    pong = sim.spawn("n3", "pong", pong_behavior, 0)
+    
+    # Send initial messages
+    sim.send(counter, "inc")
+    sim.send(logger, "before fail")
+    sim.send(pong, "ping")
+    run_cluster()
+    
+    # Fail n2
+    fail_node("n2")
+    run_cluster_steps(10)  # Allow failure detection
+    
+    # Check membership from n1's perspective
+    members = get_members("n1")
+    show "Members after n2 fail (from n1): " + format_members(members)
+    
+    # Send to failed node's actor (should dead-letter)
+    sim.send(logger, "after fail")
+    run_cluster_steps(5)
+    
+    dead = get_deadletters()
+    show "Dead letters after node fail: " + omnisys.core.type_of(omnisys.core.length(dead))
+    
+    # Restart n2
+    restart_node("n2")
+    run_cluster_steps(5)
+    
+    # Verify membership recovered
+    members = get_members("n1")
+    show "Members after n2 restart (from n1): " + format_members(members)
+    
+    snap = get_snapshot()
+    show_snapshot(snap)
+    return "SCENARIO 3 DONE"
+end
+
+# Scenario 4: Deterministic message ordering
+fn scenario_ordering() -> Text:
+    uses network
+    show "=== SCENARIO 4: Deterministic Ordering ==="
+    create_cluster("ordering")
+    add_nodes("ordering", ["n1", "n2"])
+    
+    # Spawn multiple actors on same node
+    counter1 = sim.spawn("n1", "counter1", counter_behavior, 0)
+    counter2 = sim.spawn("n1", "counter2", counter_behavior, 100)
+    counter3 = sim.spawn("n2", "counter3", counter_behavior, 1000)
+    
+    # Send messages in specific order
+    sim.send(counter1, "inc")
+    sim.send(counter2, "inc")
+    sim.send(counter3, "inc")
+    sim.send(counter1, "inc")
+    sim.send(counter2, "inc")
+    sim.send(counter3, "inc")
+    
+    run_cluster()
+    
+    snap = get_snapshot()
+    show_snapshot(snap)
+    
+    # Verify deterministic processing: nodes sorted by id, actors by name
+    # ordering.coordinator, n1 (counter1, counter2), n2 (counter3)
+    return "SCENARIO 4 DONE"
+end
+
+# Scenario 5: Dead letter handling
+fn scenario_dead_letters() -> Text:
+    uses network
+    show "=== SCENARIO 5: Dead Letters ==="
+    create_cluster("deadletter")
+    add_nodes("deadletter", ["n1", "n2"])
+    
+    counter = sim.spawn("n1", "counter", counter_behavior, 0)
+    
+    # Send to unknown actor
+    sim.send("deadletter.n1/nonexistent", "inc")
+    run_cluster_steps(2)
+    
+    # Send to actor then remove node
+    logger = sim.spawn("n2", "logger", logger_behavior, make_initial_logger_state())
+    sim.send(logger, "will be dead")
+    run_cluster()
+    
+    # Now fail n2
+    fail_node("n2")
+    run_cluster_steps(10)
+    
+    # Try to send to actor on failed node
+    sim.send(logger, "after fail")
+    run_cluster_steps(5)
+    
+    dead = get_deadletters()
+    show_deadletters(dead)
+    
+    return "SCENARIO 5 DONE"
+end
+
+# Scenario 6: Statistics and membership convergence
+fn scenario_stats_membership() -> Text:
+    uses network
+    show "=== SCENARIO 6: Stats & Membership ==="
+    create_cluster("stats")
+    add_nodes("stats", ["n1", "n2", "n3", "n4"])
+    
+    # Spawn actors on each node
+    sim.spawn("n1", "a1", counter_behavior, 0)
+    sim.spawn("n2", "a2", counter_behavior, 0)
+    sim.spawn("n3", "a3", counter_behavior, 0)
+    sim.spawn("n4", "a4", counter_behavior, 0)
+    
+    # Cross-node messaging
+    sim.send("stats.n1/a1", "inc")
+    sim.send("stats.n2/a2", "inc")
+    sim.send("stats.n3/a3", "inc")
+    sim.send("stats.n4/a4", "inc")
+    
+    run_cluster()
+    
+    # Check membership from each node
+    for node in ["n1", "n2", "n3", "n4"]:
+        members = get_members(node)
+        show "Members from " + node + ": " + format_members(members)
+    end
+    
+    # Check status
+    status = get_status()
+    show_status(status)
+    
+    stats = get_stats()
+    show "Final stats: " + format_stats(stats)
+    
+    return "SCENARIO 6 DONE"
+end
+
+# =============================================================================
+# ENTRY POINT
+# =============================================================================
+
+when app starts:
+    show "=== DISTRIBUTED ACTOR CLUSTER DEMO (Project 6.2) ==="
+    show ""
+    
+    # Run all scenarios
+    scenario_basic()
+    show ""
+    
+    scenario_partition_heal()
+    show ""
+    
+    scenario_fail_restart()
+    show ""
+    
+    scenario_ordering()
+    show ""
+    
+    scenario_dead_letters()
+    show ""
+    
+    scenario_stats_membership()
+    show ""
+    
+    show "=== ALL SCENARIOS COMPLETE ==="
+end

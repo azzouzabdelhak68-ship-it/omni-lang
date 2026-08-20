@@ -51,10 +51,23 @@
     if (typeof state._onChange === "function") {
       state._onChange();
     }
+    ui._notifyStateChange();
     return state;
   };
+  var _globalOnStateChange = null;
+
   ui.state_on_change = function (state, callback) {
     state._onChange = callback;
+  };
+
+  ui._setGlobalOnStateChange = function (callback) {
+    _globalOnStateChange = callback;
+  };
+
+  ui._notifyStateChange = function () {
+    if (typeof _globalOnStateChange === "function") {
+      _globalOnStateChange();
+    }
   };
 
   function escapeHtml(s) {

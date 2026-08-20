@@ -1,0 +1,26 @@
+# Probe 2: struct return types + field access (5.5 claimed E-TYPE-002 on fn results)
+import OMNISYS.collections
+import OMNISYS.core
+
+type AuthResult = { ok: Boolean, message: Text, subject: Text }
+
+fn make_result() -> AuthResult:
+    pure
+    return AuthResult(ok = true, message = "created", subject = "alice")
+end
+
+fn make_err() -> AuthResult:
+    pure
+    return AuthResult(ok = false, message = "denied", subject = "")
+end
+
+when app starts:
+    r = make_result()
+    show "direct field: " + r.ok
+    show "msg: " + r.message
+    if r.ok:
+        show "branch on struct field ok"
+    end
+    e = make_err()
+    show "err: " + e.message
+end

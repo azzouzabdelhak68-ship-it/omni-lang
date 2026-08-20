@@ -1,0 +1,228 @@
+# Authenticated Web Service — Project 5.2 (Benchmark RUN_001_DEEPSEEK_V4_FLASH_FREE)
+# Registration + login + JWT-style token issue/verify + role-based authorization,
+# all with explicit `secrets` capability declarations at every function boundary.
+#
+# Capability model:
+#   - omnisys.auth.* (token, verify_token, hash_password, verify_password,
+#     session_new, session_valid)        -> declared `uses secrets`
+#   - omnisys.crypto.random_bytes        -> declared `uses secrets`
+#   - omnisys.platform.now               -> pure (no capability)
+#   - omnisys.collections.* / serde      -> pure
+#
+# The in-memory user store is a Map threaded functionally through the service
+# (immutable-style updates via omnisys.collections.map_set / map_remove).
+
+import OMNISYS.auth
+import OMNISYS.collections
+import OMNISYS.core
+import OMNISYS.crypto
+import OMNISYS.platform
+import OMNISYS.serde
+
+# =============================================================================
+# CORE SERVICE OPERATIONS
+# =============================================================================
+
+# Register a user: store salt + password hash (never plaintext) + role.
+fn svc_register(store: Map, username: Text, password: Text, role: Text) -> Map:
+    uses secrets
+    found = omnisys.collections.map_has(store, username)
+    if found:
+        return {ok: false, status: 409, message: "user already exists", token: "", subject: username, role: "", store: store}
+    end
+    salt = omnisys.crypto.random_bytes(16)
+    hashval = omnisys.auth.hash_password(password, salt)
+    record = {salt: salt, hash: hashval, role: role}
+    new_store = omnisys.collections.map_set(store, username, record)
+    return {ok: true, status: 201, message: "registered", token: "", subject: username, role: role, store: new_store}
+end
+
+# Issue a JWT-style token with a role claim and an absolute expiry (seconds).
+fn svc_issue_token(secret: Text, subject: Text, role: Text, ttl_seconds: Number) -> Text:
+    uses secrets
+    exp_sec = (omnisys.platform.now() / 1000) + ttl_seconds
+    claims = {role: role, exp: exp_sec}
+    return omnisys.auth.token(subject, claims, secret)
+end
+
+# Login: verify the password hash, reject unknown users / wrong passwords.
+fn svc_login(store: Map, username: Text, password: Text, secret: Text, ttl_seconds: Number) -> Map:
+    uses secrets
+    found = omnisys.collections.map_has(store, username)
+    if not found:
+        return {ok: false, status: 401, message: "unknown user", token: "", subject: username, role: "", store: store}
+    end
+    record = omnisys.collections.map_get(store, username)
+    hashval = omnisys.collections.map_get(record, "hash")
+    roleval = omnisys.collections.map_get(record, "role")
+    pw_ok = omnisys.auth.verify_password(password, hashval)
+    if not pw_ok:
+        return {ok: false, status: 401, message: "wrong password", token: "", subject: username, role: "", store: store}
+    end
+    jwt = svc_issue_token(secret, username, roleval, ttl_seconds)
+    return {ok: true, status: 200, message: "authenticated", token: jwt, subject: username, role: roleval, store: store}
+end
+
+# Verify a token: signature, expiry, and revocation set membership.
+fn svc_verify(store: Map, secret: Text, token: Text) -> Map:
+    uses secrets
+    revoked_list = omnisys.collections.map_get(store, "__revoked__")
+    is_revoked = omnisys.collections.list_contains(revoked_list, token)
+    if is_revoked:
+        return {ok: false, status: 401, message: "token revoked", subject: "", role: ""}
+    end
+    res = omnisys.auth.verify_token(token, secret)
+    okval = omnisys.collections.map_get(res, "valid")
+    if okval is true:
+        claims = omnisys.collections.map_get(res, "claims")
+        sub = omnisys.collections.map_get(claims, "sub")
+        exp_sec = omnisys.collections.map_get(claims, "exp")
+        roleval = omnisys.collections.map_get(claims, "role")
+        now_sec = omnisys.platform.now() / 1000
+        if now_sec greater than exp_sec:
+            return {ok: false, status: 401, message: "token expired", subject: "", role: ""}
+        end
+        return {ok: true, status: 200, message: "valid", subject: sub, role: roleval}
+    end
+    return {ok: false, status: 401, message: "invalid signature", subject: "", role: ""}
+end
+
+# Logout: revoke the presented token so it is rejected on protected endpoints.
+fn svc_logout(store: Map, secret: Text, token: Text) -> Map:
+    uses secrets
+    revoked_list = omnisys.collections.map_get(store, "__revoked__")
+    revoked_list = omnisys.collections.list_push(revoked_list, token)
+    new_store = omnisys.collections.map_set(store, "__revoked__", revoked_list)
+    return {ok: true, status: 200, message: "logged out", token: "", subject: "", role: "", store: new_store}
+end
+
+# =============================================================================
+# PROTECTED ENDPOINTS
+# =============================================================================
+
+# GET /profile — any authenticated user may read their own profile.
+fn endpoint_profile(store: Map, secret: Text, token: Text) -> Map:
+    uses secrets
+    ver = svc_verify(store, secret, token)
+    okval = omnisys.collections.map_get(ver, "ok")
+    if not okval:
+        reason = omnisys.collections.map_get(ver, "message")
+        return {ok: false, status: 401, message: "unauthorized: " + reason, subject: "", role: ""}
+    end
+    sub = omnisys.collections.map_get(ver, "subject")
+    found = omnisys.collections.map_has(store, sub)
+    if not found:
+        return {ok: false, status: 404, message: "profile not found", subject: sub, role: ""}
+    end
+    record = omnisys.collections.map_get(store, sub)
+    roleval = omnisys.collections.map_get(record, "role")
+    return {ok: true, status: 200, message: "profile for " + sub, subject: sub, role: roleval}
+end
+
+# GET /admin — only users holding an "admin" role claim are authorized.
+fn endpoint_admin(store: Map, secret: Text, token: Text) -> Map:
+    uses secrets
+    ver = svc_verify(store, secret, token)
+    okval = omnisys.collections.map_get(ver, "ok")
+    if not okval:
+        reason = omnisys.collections.map_get(ver, "message")
+        return {ok: false, status: 401, message: "unauthorized: " + reason, subject: "", role: ""}
+    end
+    sub = omnisys.collections.map_get(ver, "subject")
+    roleval = omnisys.collections.map_get(ver, "role")
+    if roleval is not "admin":
+        return {ok: false, status: 403, message: "forbidden: admin role required", subject: sub, role: roleval}
+    end
+    return {ok: true, status: 200, message: "admin access granted", subject: sub, role: roleval}
+end
+
+# =============================================================================
+# SESSIONS
+# =============================================================================
+
+fn svc_start_session(secret: Text, subject: Text, ttl_seconds: Number) -> Map:
+    uses secrets
+    return omnisys.auth.session_new(secret, subject, ttl_seconds)
+end
+
+fn svc_session_status(session: Map) -> Text:
+    uses secrets
+    valid = omnisys.auth.session_valid(session)
+    if valid:
+        return "session valid"
+    end
+    return "session expired"
+end
+
+# =============================================================================
+# ENTRY POINT — end-to-end service demo
+# =============================================================================
+
+when app starts:
+    secret = "benchmark-secret-key-001"
+    store = {__revoked__: []}
+
+    show "=== AUTH SERVICE (project 5.2) ==="
+    show ""
+
+    # --- Registration ---
+    r_alice = svc_register(store, "alice", "correct-horse", "admin")
+    store = omnisys.collections.map_get(r_alice, "store")
+    show "register alice: " + omnisys.serde.json_encode(r_alice)
+
+    r_bob = svc_register(store, "bob", "battery-staple", "user")
+    store = omnisys.collections.map_get(r_bob, "store")
+    show "register bob: " + omnisys.serde.json_encode(r_bob)
+
+    r_dup = svc_register(store, "alice", "another-pass", "user")
+    show "duplicate register: " + omnisys.serde.json_encode(r_dup)
+
+    # --- Login ---
+    l_alice = svc_login(store, "alice", "correct-horse", secret, 3600)
+    show "login alice: " + omnisys.serde.json_encode(l_alice)
+    tok = omnisys.collections.map_get(l_alice, "token")
+
+    l_bad = svc_login(store, "alice", "wrong-password", secret, 3600)
+    show "login bad password: " + omnisys.serde.json_encode(l_bad)
+
+    l_nf = svc_login(store, "mallory", "guess", secret, 3600)
+    show "login unknown user: " + omnisys.serde.json_encode(l_nf)
+
+    # --- Protected endpoint: profile ---
+    prof = endpoint_profile(store, secret, tok)
+    show "profile (alice): " + omnisys.serde.json_encode(prof)
+
+    anon = endpoint_profile(store, secret, "not.a.real.token")
+    show "profile (anonymous): " + omnisys.serde.json_encode(anon)
+
+    # --- Role-based access control ---
+    adm_alice = endpoint_admin(store, secret, tok)
+    show "admin (alice): " + omnisys.serde.json_encode(adm_alice)
+
+    bob_tok = omnisys.collections.map_get(svc_login(store, "bob", "battery-staple", secret, 3600), "token")
+    adm_bob = endpoint_admin(store, secret, bob_tok)
+    show "admin (bob): " + omnisys.serde.json_encode(adm_bob)
+
+    # --- Expiry ---
+    stale_tok = svc_issue_token(secret, "alice", "admin", -10)
+    v_stale = svc_verify(store, secret, stale_tok)
+    show "verify expired token: " + omnisys.serde.json_encode(v_stale)
+
+    # --- Logout / revocation ---
+    lo = svc_logout(store, secret, tok)
+    store = omnisys.collections.map_get(lo, "store")
+    show "logout alice: " + omnisys.serde.json_encode(lo)
+    v_revoked = svc_verify(store, secret, tok)
+    show "verify after logout: " + omnisys.serde.json_encode(v_revoked)
+
+    # --- Sessions ---
+    sess = svc_start_session(secret, "alice", 3600)
+    show "session: " + omnisys.serde.json_encode(sess)
+    sess_valid = svc_session_status(sess)
+    show "session status: " + sess_valid
+    sess_expired = svc_session_status(svc_start_session(secret, "bob", -1))
+    show "expired session status: " + sess_expired
+
+    show ""
+    show "=== demo complete ==="
+end

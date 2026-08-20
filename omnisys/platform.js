@@ -33,11 +33,11 @@
     if (nodeOs) return nodeOs.arch();
     return "js";
   };
-  platform.env = function (key) {
+  platform.env = function (key, defaultValue) {
     if (nodeProcess && nodeProcess.env && nodeProcess.env[String(key)] !== undefined) {
       return String(nodeProcess.env[String(key)]);
     }
-    return "";
+    return defaultValue !== undefined ? String(defaultValue) : "";
   };
   platform.info = function () {
     return {

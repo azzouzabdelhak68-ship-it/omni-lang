@@ -1,0 +1,16 @@
+# Probe 5B: pure function calling a `uses secrets` function -> expect E-EFFECT-001
+import OMNISYS.auth
+
+fn secret_helper(salt: Text) -> Text:
+    uses secrets
+    return omnisys.auth.hash_password("x", salt)
+end
+
+fn pure_wrapper(salt: Text) -> Text:
+    pure
+    return secret_helper(salt)
+end
+
+when app starts:
+    show pure_wrapper("salt")
+end

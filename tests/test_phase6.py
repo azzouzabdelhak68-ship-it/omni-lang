@@ -568,9 +568,8 @@ when app starts:
 end
 """)
     )
-    assert 'new Map([' in js
-    assert '["name", "ada"]' in js
-    assert '[age, 36]' in js or '["age", 36]' in js
+    assert '{"name": "ada", "age": 36}' in js or '{"age": 36, "name": "ada"}' in js
+    assert 'new Map(' not in js
 
 
 def test_rust_emitter_map():

@@ -1,0 +1,85 @@
+# Probe — wrong passphrase must keep the vault locked (reuses vault dir from rt1)
+import OMNISYS.core
+import OMNISYS.crypto
+import OMNISYS.fs
+import OMNISYS.collections
+
+fn derive_storage_key(passphrase: Text, salt: Text, iterations: Number) -> Text:
+    uses secrets
+    return omnisys.crypto.kdf(passphrase, salt, iterations)
+end
+
+fn make_salt() -> Text:
+    uses secrets
+    return omnisys.crypto.random_bytes(16)
+end
+
+fn parse_field(content: Text, field: Text) -> Text:
+    pure
+    lines = omnisys.core.split(content, "\n")
+    for line in lines:
+        parts = omnisys.core.split(line, ":")
+        if omnisys.core.length(parts) greater or equal 2:
+            if parts[0] is field:
+                return parts[1]
+            end
+        end
+    end
+    return ""
+end
+
+fn vault_unlock(passphrase: Text) -> Text:
+    uses secrets
+    uses filesystem
+    reads vault_dir
+    reads vault_iters
+    reads vault_salt
+    writes vault_salt
+    writes vault_key
+    writes vault_open
+    omnisys.fs.make_dir(vault_dir)
+    cfg = omnisys.fs.join_path(vault_dir, "vault.cfg")
+    if omnisys.fs.file_exists(cfg):
+        content = omnisys.fs.read_file(cfg)
+        salt = parse_field(content, "SALT")
+        passcheck = parse_field(content, "PASS")
+        if omnisys.core.is_empty(salt) or omnisys.core.is_empty(passcheck):
+            return "ERROR: CFG_CORRUPT"
+        end
+        vault_salt = salt
+        key = derive_storage_key(passphrase, vault_salt, vault_iters)
+        if not omnisys.crypto.constant_time_eq(omnisys.crypto.hmac(key, "vault-check"), passcheck):
+            return "ERROR: WRONG_PASSPHRASE"
+        end
+        vault_key = key
+        vault_open = true
+        return "OK: VAULT_UNLOCKED"
+    else:
+        salt = make_salt()
+        vault_salt = salt
+        key = derive_storage_key(passphrase, vault_salt, vault_iters)
+        passcheck = omnisys.crypto.hmac(key, "vault-check")
+        omnisys.fs.write_file(cfg, "SALT:" + salt + "\n" + "PASS:" + passcheck)
+        vault_key = key
+        vault_open = true
+        return "OK: VAULT_CREATED_AND_UNLOCKED"
+    end
+end
+
+when app starts:
+    vault_dir = "vault_data"
+    vault_iters = 1000
+    vault_salt = ""
+    vault_key = ""
+    vault_open = false
+    show vault_unlock("wrong passphrase")
+    show "STATUS: " + vault_status()
+end
+
+fn vault_status() -> Text:
+    reads vault_open
+    if vault_open:
+        return "OK: UNLOCKED"
+    end
+    return "OK: LOCKED"
+end

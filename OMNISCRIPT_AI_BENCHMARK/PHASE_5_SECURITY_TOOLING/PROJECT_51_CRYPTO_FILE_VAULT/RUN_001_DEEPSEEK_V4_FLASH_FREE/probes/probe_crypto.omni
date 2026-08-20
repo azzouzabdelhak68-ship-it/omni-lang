@@ -1,0 +1,54 @@
+# Probe 1 — crypto API usage, map field reads, splits (pure layer only)
+import OMNISYS.core
+import OMNISYS.crypto
+import OMNISYS.collections
+
+fn derive_key(passphrase: Text, salt: Text, iters: Number) -> Text:
+    uses secrets
+    return omnisys.crypto.kdf(passphrase, salt, iters)
+end
+
+fn encrypt_text(key: Text, plaintext: Text) -> Text:
+    uses secrets
+    enc = omnisys.crypto.encrypt_aes(key, plaintext)
+    iv = enc["iv"]
+    data = enc["data"]
+    return iv + "|" + data
+end
+
+fn decrypt_text(key: Text, blob: Text) -> Text:
+    uses secrets
+    parts = omnisys.core.split(blob, "|")
+    iv = parts[0]
+    data = parts[1]
+    cipher = {tag: "cipher", iv: iv, data: data}
+    return omnisys.crypto.decrypt_aes(cipher, key)
+end
+
+fn integrity_mac(key: Text, data: Text) -> Text:
+    pure
+    return omnisys.crypto.hmac(key, data)
+end
+
+fn mac_matches(a: Text, b: Text) -> Boolean:
+    pure
+    return omnisys.crypto.constant_time_eq(a, b)
+end
+
+fn generate_salt() -> Text:
+    uses secrets
+    return omnisys.crypto.random_bytes(16)
+end
+
+when app starts:
+    salt = generate_salt()
+    key = derive_key("hunter2", salt, 1000)
+    show "KEY_LEN: " + omnisys.core.length(key)
+    blob = encrypt_text(key, "hello vault world")
+    show "BLOB: " + blob
+    plain = decrypt_text(key, blob)
+    show "PLAIN: " + plain
+    mac = integrity_mac(key, blob)
+    show "MAC: " + mac
+    show "TAMPER_CHECK_FALSE: " + mac_matches(mac, "0000000000000000000000000000000000000000000000000000000000000000")
+end

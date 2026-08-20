@@ -1,0 +1,35 @@
+# Probe 1: OMNISYS.tool pure functions + map_set + structs
+import OMNISYS.tool
+import OMNISYS.core
+import OMNISYS.collections
+import OMNISYS.serde
+
+fn count_tokens(text: Text) -> Number:
+    pure
+    tokens = omnisys.tool.tokenize(text)
+    return omnisys.core.length(tokens)
+end
+
+fn report_lines(text: Text) -> Number:
+    pure
+    return omnisys.tool.line_count(text)
+end
+
+fn count_identifiers(text: Text) -> Number:
+    pure
+    return omnisys.tool.identifier_count(text)
+end
+
+type InspectEntry = { name: Text, kind: Text }
+
+when app starts:
+    sample = "fn hello() -> Number: return 1 end"
+    show "tokens: " + count_tokens(sample)
+    show "lines: " + report_lines(sample)
+    show "ids: " + count_identifiers(sample)
+    entry = InspectEntry(name = "x", kind = "fn")
+    show "struct name: " + entry.name
+    m = omnisys.collections.map_set({}, "k", "v")
+    v = omnisys.collections.map_get(m, "k")
+    show "map value: " + v
+end

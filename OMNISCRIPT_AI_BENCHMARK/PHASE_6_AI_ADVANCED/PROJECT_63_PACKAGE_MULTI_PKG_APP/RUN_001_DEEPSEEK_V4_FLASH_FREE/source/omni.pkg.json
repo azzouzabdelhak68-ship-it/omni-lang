@@ -1,0 +1,8 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "dependencies": {
+    "core": "^1.0.0",
+    "parser": "^1.0.0"
+  }
+}

@@ -1,0 +1,251 @@
+# Application Diagnostics & Observability Demo — Phase 5 Project 5.3
+# An in-memory settlement-dispatch workload instrumented with structured logs,
+# metric counters/gauges, trace spans and profiling. A boundary-comparison bug
+# is planted in the dispatch gate; diagnose() correlates snapshot telemetry to
+# isolate the root cause, then a fixed gate verifies remediation.
+
+import OMNISYS.core
+import OMNISYS.collections
+import OMNISYS.observability
+
+type DispatchTask = { id: Text, priority: Number }
+type DiagnosticReport = { symptoms: Text, evidence: Text, root_cause: Text, remediation: Text, verification: Text }
+
+# =============================================================================
+# TELEMETRY PRIMITIVES — metric counters and gauges
+# =============================================================================
+
+fn bump_counter(name: Text) -> Number:
+    pure
+    cur = omnisys.observability.metric_value(name)
+    omnisys.observability.metric(name, cur + 1)
+    return omnisys.observability.metric_value(name)
+end
+
+fn set_gauge(name: Text, value: Number) -> Number:
+    pure
+    omnisys.observability.metric(name, value)
+    return omnisys.observability.metric_value(name)
+end
+
+# =============================================================================
+# CRITICAL PATH — the dispatch gate (BUGGY variant)
+# =============================================================================
+# Planted malfunction: the boundary comparison uses `greater or equal`. A task
+# whose priority exactly equals max_allowed is wrongly rejected. Every dispatch
+# emits a trace span, a structured info log, and metric counters; failures emit
+# an error log and a failed trace record.
+
+fn dispatch_gate(task: DispatchTask, max_allowed: Number) -> Boolean:
+    pure
+    span_id = omnisys.observability.trace_begin("dispatch:" + task.id)
+    omnisys.observability.info("dispatch_attempt", {"task": task.id, "priority": task.priority})
+    if task.priority greater or equal max_allowed:
+        bump_counter("rejected_total")
+        omnisys.observability.error("REJECTED priority " + task.priority, {"task": task.id, "max_allowed": max_allowed})
+        omnisys.observability.trace_end(span_id, {"ok": false, "reason": "priority_gate", "task": task.id})
+        return false
+    end
+    bump_counter("accepted_total")
+    omnisys.observability.trace_end(span_id, {"ok": true, "reason": "ok", "task": task.id})
+    return true
+end
+
+# =============================================================================
+# CRITICAL PATH — the dispatch gate (FIXED variant)
+# =============================================================================
+# Remediation: strict `greater than` so the boundary priority equal to
+# max_allowed passes the gate.
+
+fn dispatch_gate_fixed(task: DispatchTask, max_allowed: Number) -> Boolean:
+    pure
+    span_id = omnisys.observability.trace_begin("dispatch:" + task.id)
+    omnisys.observability.info("dispatch_attempt", {"task": task.id, "priority": task.priority})
+    if task.priority greater than max_allowed:
+        bump_counter("rejected_total")
+        omnisys.observability.error("REJECTED priority " + task.priority, {"task": task.id, "max_allowed": max_allowed})
+        omnisys.observability.trace_end(span_id, {"ok": false, "reason": "priority_gate", "task": task.id})
+        return false
+    end
+    bump_counter("accepted_total")
+    omnisys.observability.trace_end(span_id, {"ok": true, "reason": "ok", "task": task.id})
+    return true
+end
+
+# =============================================================================
+# WORKLOAD — run a batch through the selected gate, return rejection count
+# =============================================================================
+
+fn run_batch(tasks: List, max_allowed: Number, use_fixed: Boolean) -> Number:
+    pure
+    rejected = 0
+    for task in tasks:
+        ok = false
+        if use_fixed:
+            ok = dispatch_gate_fixed(task, max_allowed)
+        else:
+            ok = dispatch_gate(task, max_allowed)
+        end
+        if not ok:
+            rejected = rejected + 1
+        end
+    end
+    return rejected
+end
+
+# =============================================================================
+# TELEMETRY INTERPRETATION — correlate snapshot records to the root cause
+# =============================================================================
+
+fn count_logs_at(level: Text) -> Number:
+    pure
+    snap = omnisys.observability.snapshot()
+    logs = omnisys.collections.map_get(snap, "logs")
+    n = 0
+    for entry in logs:
+        if entry["level"] is level:
+            n = n + 1
+        end
+    end
+    return n
+end
+
+fn failed_trace_count() -> Number:
+    pure
+    snap = omnisys.observability.snapshot()
+    traces = omnisys.collections.map_get(snap, "traces")
+    n = 0
+    for tr in traces:
+        if tr["fields"]["ok"] is false:
+            n = n + 1
+        end
+    end
+    return n
+end
+
+fn first_error_message() -> Text:
+    pure
+    snap = omnisys.observability.snapshot()
+    logs = omnisys.collections.map_get(snap, "logs")
+    msg = ""
+    for entry in logs:
+        if entry["level"] is "error":
+            msg = entry["message"]
+        end
+    end
+    return msg
+end
+
+fn boundary_priority(msg: Text) -> Number:
+    pure
+    parts = omnisys.core.split(msg, " ")
+    return omnisys.core.to_number(parts[2])
+end
+
+fn boundary_rejection_found(max_allowed: Number) -> Boolean:
+    pure
+    snap = omnisys.observability.snapshot()
+    logs = omnisys.collections.map_get(snap, "logs")
+    found = false
+    for entry in logs:
+        if entry["level"] is "error":
+            if boundary_priority(entry["message"]) is max_allowed:
+                found = true
+            end
+        end
+    end
+    return found
+end
+
+fn diagnose(max_allowed: Number) -> DiagnosticReport:
+    pure
+    rejected = omnisys.observability.metric_value("rejected_total")
+    accepted = omnisys.observability.metric_value("accepted_total")
+    errs = count_logs_at("error")
+    bad_traces = failed_trace_count()
+    boundary = boundary_rejection_found(max_allowed)
+
+    symptoms = "failed=" + rejected + " ok=" + accepted + " error_logs=" + errs + " failed_traces=" + bad_traces
+    evidence = "error logs contain a rejection at priority " + max_allowed + " == max_allowed: " + boundary
+    cause = "off-by-one boundary comparison in dispatch gate"
+    if boundary:
+        cause = "boundary case confirmed: priority == max_allowed wrongly rejected by `greater or equal`"
+    end
+    remediation = "replace `greater or equal` with `greater than` in the dispatch gate"
+    verification = "fixed gate must reject only priorities above max_allowed"
+
+    return DiagnosticReport(symptoms = symptoms, evidence = evidence, root_cause = cause, remediation = remediation, verification = verification)
+end
+
+# =============================================================================
+# PROFILING TARGET — zero-argument workload for omnisys.observability.profile
+# =============================================================================
+
+fn bench_loop() -> Number:
+    pure
+    acc = 0.0
+    for i in range(2000):
+        acc = acc + 1.0
+    end
+    return acc
+end
+
+# =============================================================================
+# ENTRY POINT — reproduce, diagnose, remediate, verify
+# =============================================================================
+
+when app starts:
+    omnisys.observability.clear()
+
+    # Build the workload: priorities 1..5, gate threshold max_allowed = 3.
+    tasks = []
+    tasks = omnisys.collections.list_push(tasks, DispatchTask(id = "t-1", priority = 1))
+    tasks = omnisys.collections.list_push(tasks, DispatchTask(id = "t-2", priority = 2))
+    tasks = omnisys.collections.list_push(tasks, DispatchTask(id = "t-3", priority = 3))
+    tasks = omnisys.collections.list_push(tasks, DispatchTask(id = "t-4", priority = 4))
+    tasks = omnisys.collections.list_push(tasks, DispatchTask(id = "t-5", priority = 5))
+    set_gauge("queue_depth", omnisys.core.length(tasks))
+    show "queued tasks: " + omnisys.core.length(tasks)
+    show "gauge queue_depth: " + omnisys.observability.metric_value("queue_depth")
+
+    # ---- Phase 1: reproduce the malfunction (buggy gate, >=) ----
+    omnisys.observability.info("phase_start", {"phase": "reproduce", "gate": "buggy", "max_allowed": 3})
+    buggy_rejected = run_batch(tasks, 3, false)
+    show "phase1 buggy rejected: " + buggy_rejected
+    show "phase1 error logs: " + count_logs_at("error")
+    show "phase1 failed traces: " + failed_trace_count()
+
+    # ---- Phase 2: diagnose from the collected telemetry ----
+    report = diagnose(3)
+    show ""
+    show "=== DIAGNOSIS ==="
+    show "symptoms: " + report.symptoms
+    show "evidence: " + report.evidence
+    show "root_cause: " + report.root_cause
+    show "remediation: " + report.remediation
+    show "verification: " + report.verification
+
+    # ---- Phase 3: apply the fix and verify against fresh telemetry ----
+    omnisys.observability.clear()
+    set_gauge("queue_depth", omnisys.core.length(tasks))
+    omnisys.observability.info("phase_start", {"phase": "verify", "gate": "fixed", "max_allowed": 3})
+    fixed_rejected = run_batch(tasks, 3, true)
+    show ""
+    show "=== REMEDIATION CHECK ==="
+    show "phase3 fixed rejected: " + fixed_rejected
+    show "phase3 error logs: " + count_logs_at("error")
+    show "phase3 failed traces: " + failed_trace_count()
+    if fixed_rejected less than buggy_rejected:
+        show "verification: PASSED — rejections dropped from " + buggy_rejected + " to " + fixed_rejected
+    else:
+        show "verification: FAILED — rejection count did not improve"
+    end
+
+    omnisys.observability.info("diagnostics_complete", {"buggy_rejected": buggy_rejected, "fixed_rejected": fixed_rejected})
+
+    # ---- Profiling telemetry ----
+    elapsed = omnisys.observability.profile(bench_loop, 500)
+    show ""
+    show "profile bench_loop x500: " + elapsed + " ms"
+    show "=== Diagnostics App Complete ==="
+end

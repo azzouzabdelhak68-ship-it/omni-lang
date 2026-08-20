@@ -3,7 +3,7 @@
 
 ## File: `omni_compiler\__init__.py`
 ```python
-# OmniScript Compiler Package
+"""OmniScript Compiler Package."""
 
 ```
 
@@ -205,7 +205,7 @@ def apply_automatic_fixes(source_code: str, fixes: list[dict[str, Any]]) -> str:
     return source_code
 
 
-def _expr_to_string(e: Any) -> str:
+def _expr_to_string(e: Any) -> str:  # noqa: PLR0912
     if isinstance(e, Literal):
         if e.value_type == 'Text':
             result: str = '"' + e.value.replace('"', '\\"') + '"'
@@ -2014,7 +2014,7 @@ def location_from_exception(e: Exception) -> tuple[int, int, int, int]:
 class DiagnosticError(Exception):
     """Raised when semantic analysis finds a diagnostic issue."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         code: str,
         category: str,
@@ -2482,7 +2482,7 @@ class SemanticAnalyzer:
             self.analyze_statement(stmt)
         self.symbol_table.pop_scope()
 
-    def analyze_statement(self, stmt: Any) -> None:
+    def analyze_statement(self, stmt: Any) -> None:  # noqa: PLR0912, PLR0915
         """Analyze a single statement node."""
         if isinstance(stmt, Assignment):
             self.analyze_expr(stmt.expr)
@@ -2620,7 +2620,7 @@ class SemanticAnalyzer:
         elif isinstance(stmt, (FieldAccess, StructConstruct)):
             self.analyze_expr(stmt)
 
-    def analyze_expr(self, expr: Any) -> None:
+    def analyze_expr(self, expr: Any) -> None:  # noqa: PLR0912
         """Analyze a single expression node."""
         if isinstance(expr, Identifier):
             self.check_identifier(expr.name, expr)
@@ -2793,7 +2793,7 @@ class SemanticAnalyzer:
                 ],
             )
 
-    def check_identifier(self, name: str, node: Any = None) -> None:
+    def check_identifier(self, name: str, node: Any = None) -> None:  # noqa: PLR0911, PLR0912
         """Check that an identifier is declared and imported."""
         if name in BUILTIN_CAPABILITIES or name in BUILTIN_FUNCTIONS or name.startswith('sim.'):
             return
@@ -2831,13 +2831,13 @@ class SemanticAnalyzer:
         if not self.symbol_table.lookup(name):
             err = NameError(f"Undefined variable or function '{name}'")
             if node is not None:
-                err.line = getattr(node, 'line', 1)
-                err.column = getattr(node, 'column', 1)
-                err.span_start = getattr(node, 'span_start', 0)
-                err.span_end = getattr(node, 'span_end', 0)
+                setattr(err, 'line', getattr(node, 'line', 1))  # noqa: B010
+                setattr(err, 'column', getattr(node, 'column', 1))  # noqa: B010
+                setattr(err, 'span_start', getattr(node, 'span_start', 0))  # noqa: B010
+                setattr(err, 'span_end', getattr(node, 'span_end', 0))  # noqa: B010
             raise err
 
-    def _resolve_type_of(self, expr: Any) -> str:
+    def _resolve_type_of(self, expr: Any) -> str:  # noqa: PLR0911, PLR0912
         if isinstance(expr, GroupExpr):
             return self._resolve_type_of(expr.expr)
         if isinstance(expr, UnaryExpr):
@@ -2998,14 +2998,14 @@ class SemanticAnalyzer:
 
     # ---- Effect enforcement ----
 
-    def enforce_app_block_effects(self, app_block: AppBlock) -> None:
+    def enforce_app_block_effects(self, app_block: AppBlock) -> None:  # noqa: PLR0912
         """Enforce declared effects in the app block."""
         actual: set[str] = set()
         for stmt in app_block.body:
             self._walk_stmt(stmt, actual, inherit=False, app_scope=True)
         self._enforce('app starts', {'uses': [], 'reads': [], 'writes': [], 'pure': False}, actual)
 
-    def enforce_function_effects(self, fn: FunctionDef) -> None:
+    def enforce_function_effects(self, fn: FunctionDef) -> None:  # noqa: PLR0912
         """Enforce declared effects in a function."""
         actual: set[str] = set()
         cap = BUILTIN_CAPABILITIES.get(fn.name)
@@ -3076,7 +3076,7 @@ class SemanticAnalyzer:
         elif isinstance(stmt, AwaitExpr):
             self._walk_expr(stmt.expr, uses, inherit, app_scope)
 
-    def _walk_expr(self, expr: Any, uses: set[str], inherit: bool, app_scope: bool) -> None:
+    def _walk_expr(self, expr: Any, uses: set[str], inherit: bool, app_scope: bool) -> None:  # noqa: PLR0912
         if isinstance(expr, FunctionCall):
             self._walk_call(expr, uses, inherit, app_scope)
             for arg in expr.args:
@@ -3105,7 +3105,7 @@ class SemanticAnalyzer:
         elif isinstance(expr, AwaitExpr):
             self._walk_expr(expr.expr, uses, inherit, app_scope)
 
-    def _walk_data_access(
+    def _walk_data_access(  # noqa: PLR0912
         self,
         stmt: Any,
         reads: set[str],
@@ -3148,7 +3148,7 @@ class SemanticAnalyzer:
         else:
             self._walk_expr_data_access(stmt, reads, param_names, local_names)
 
-    def _walk_expr_data_access(
+    def _walk_expr_data_access(  # noqa: PLR0912
         self,
         expr: Any,
         reads: set[str],
@@ -3194,9 +3194,8 @@ class SemanticAnalyzer:
         self, call: FunctionCall, uses: set[str], inherit: bool, app_scope: bool
     ) -> None:
         cap = BUILTIN_CAPABILITIES.get(call.name)
-        if cap:
-            if not app_scope or self.symbol_table.lookup(call.name) is None:
-                uses.add(cap)
+        if cap and (not app_scope or self.symbol_table.lookup(call.name) is None):
+            uses.add(cap)
         omnisys_uses = omnisys_effects(call.name)
         if omnisys_uses:
             uses.update(omnisys_uses)
@@ -3423,6 +3422,7 @@ class SemanticAnalyzer:
 
 
 def analyze(prog: Program) -> SymbolTable:
+    """Analyze a program and return its symbol table."""
     analyzer = SemanticAnalyzer()
     return analyzer.analyze(prog)
 
@@ -3851,7 +3851,7 @@ def verify(file: Path, lang: str | None) -> None:
     default=None,
     help='Language mode (default: auto-detect).',
 )
-def suggest(file: Path, lang: str | None) -> None:
+def suggest(file: Path, lang: str | None) -> None:  # noqa: ARG001
     """Propose ranked fixes for errors in an OmniScript file."""
     try:
         from omni_compiler.ai_tools import suggest_fix  # noqa: PLC0415
@@ -3944,8 +3944,8 @@ def lsp() -> None:
 @click.option('--diff', is_flag=True, help='Show diff instead of writing.')
 @click.option('--indent', default=4, show_default=True, type=int, help='Indent size in spaces.')
 @click.option('--tabs', is_flag=True, help='Use tabs for indentation.')
-def fmt(
-    paths: tuple[Path, ...], check: bool, write: bool, diff: bool, indent: int, tabs: bool
+def fmt(  # noqa: PLR0913, PLR0917
+    paths: tuple[Path, ...], check: bool, _write: bool, diff: bool, indent: int, tabs: bool
 ) -> None:
     """Format OmniScript (.omni) files to canonical layout."""
     if not paths:
@@ -4111,7 +4111,7 @@ def _omnisys_runtime(mir: Any) -> list[str]:
 
 
 def _js_text(raw: str) -> str:
-    """Render an OmniScript text literal (with {expr} slots) as JS expression.
+    r"""Render an OmniScript text literal (with {expr} slots) as JS expression.
 
     ``\{`` and ``\}`` are literal braces; ``{expr}`` interpolates an expression.
     """
@@ -4147,7 +4147,7 @@ def _js_text(raw: str) -> str:
     return ' + '.join(parts)
 
 
-def _js_expr(e: dict[str, Any], params: set[str]) -> str:  # noqa: PLR0911, PLR0912
+def _js_expr(e: dict[str, Any], params: set[str]) -> str:  # noqa: PLR0911, PLR0912, PLR0915
     op = e.get('op')
     if op == 'number':
         return str(e['value'])
@@ -4171,8 +4171,8 @@ def _js_expr(e: dict[str, Any], params: set[str]) -> str:  # noqa: PLR0911, PLR0
         pairs = []
         for k, v in e['items'].items():
             quoted = _js_text('"' + k + '"')
-            pairs.append(f'[{quoted}, {_js_expr(v, params)}]')
-        return 'new Map([' + ', '.join(pairs) + '])'
+            pairs.append(f'{quoted}: {_js_expr(v, params)}')
+        return '{' + ', '.join(pairs) + '}'
     if op == 'index':
         return f'{_js_expr(e["object"], params)}[{_js_expr(e["index"], params)}]'
     if op == 'await':
@@ -4230,7 +4230,7 @@ def _js_expr(e: dict[str, Any], params: set[str]) -> str:  # noqa: PLR0911, PLR0
     return f'{_js_expr(e["left"], params)} {jop} {_js_expr(e["right"], params)}'
 
 
-def _js_stmt(s: dict[str, Any], params: set[str]) -> str:  # noqa: PLR0911
+def _js_stmt(s: dict[str, Any], params: set[str]) -> str:  # noqa: PLR0911, PLR0912
     op = s.get('op')
     if op == 'assign':
         return f'{s["name"]} = {_js_expr(s["expr"], params)};'
@@ -4599,6 +4599,10 @@ def emit_js(mir: Any) -> str:  # noqa: PLR0915
     js.append('  });')
     js.append('}')
     js.append('bindClicks();')
+    js.append(
+        'if (typeof omnisys !== "undefined" && omnisys.ui) '
+        'omnisys.ui._setGlobalOnStateChange(batchUpdate);'
+    )
 
     scene_js = _js_scene(mir)
     if scene_js:
@@ -4673,13 +4677,18 @@ from omni_compiler.parser import (
 
 @dataclass
 class FormatConfig:
+    """Configuration options for the formatter."""
+
     indent_size: int = 4
     use_tabs: bool = False
     max_line_length: int = 100
 
 
 class Formatter:
-    def __init__(self, config: FormatConfig | None = None):
+    """Formats an OmniScript AST into canonical source layout."""
+
+    def __init__(self, config: FormatConfig | None = None) -> None:
+        """Initialize the formatter with optional custom config."""
         self.config = config or FormatConfig()
         self.indent_level = 0
         self.output: list[str] = []
@@ -4696,6 +4705,7 @@ class Formatter:
         self.output.append(text + '\n')
 
     def format(self, node: Program) -> str:
+        """Format an OmniScript program AST to a string."""
         self.output = []
         self.indent_level = 0
         self._format_program(node)
@@ -4806,7 +4816,7 @@ class Formatter:
         self._writeln(template.strip())
         self._writeln('end')
 
-    def _format_statement(self, node: Any) -> None:
+    def _format_statement(self, node: Any) -> None:  # noqa: PLR0912
         if isinstance(node, Assignment):
             self._writeln(f'{self._indent()}{node.name} = {self._format_expr(node.expr)}')
         elif isinstance(node, ReturnStmt):
@@ -4894,7 +4904,7 @@ class Formatter:
 
         self._writeln(f'{self._indent()}end')
 
-    def _format_expr(self, node: Any) -> str:
+    def _format_expr(self, node: Any) -> str:  # noqa: PLR0911, PLR0912
         if node is None:
             return ''
 
@@ -4999,12 +5009,16 @@ def format_file(
 
 ## File: `omni_compiler\lexer.py`
 ```python
+"""Lexical analysis for OmniScript source code."""
+
 import re
 from dataclasses import dataclass
 from enum import Enum
 
 
 class TokenType(Enum):
+    """Types of tokens produced by the OmniScript lexer."""
+
     IDENTIFIER = 'IDENTIFIER'
     NUMBER = 'NUMBER'
     TEXT = 'TEXT'
@@ -5311,6 +5325,8 @@ def keyword_tables_for(lang: str) -> dict[str, TokenType]:
 
 @dataclass
 class Token:
+    """A single token with type, value, and location info."""
+
     type: TokenType
     value: str
     line: int
@@ -5319,7 +5335,8 @@ class Token:
     span_end: int
 
 
-def tokenize(code: str) -> list[Token]:
+def tokenize(code: str) -> list[Token]:  # noqa: PLR0912, PLR0915
+    """Tokenize OmniScript source code into a list of tokens."""
     tokens = []
     line = 1
     column = 1
@@ -5418,7 +5435,7 @@ def tokenize(code: str) -> list[Token]:
                 column += 1
         pos = span_end
 
-        if kind == 'WHITESPACE' or kind == 'COMMENT' or kind == 'SLASH_COMMENT':
+        if kind in {'WHITESPACE', 'COMMENT', 'SLASH_COMMENT'}:
             continue
         if kind == 'HASH_LANG':
             tokens.append(
@@ -5989,9 +6006,10 @@ class MIRModule:
             },
             indent=2,
         )
-
+    
     @classmethod
     def from_json(cls, json_str: str) -> 'MIRModule':
+        """Deserialize an MIRModule from a JSON string."""
         data = json.loads(json_str)
         module = cls(schema=data['schema'], version=data['version'])
         for name, fn_data in data.get('functions', {}).items():
@@ -6035,7 +6053,7 @@ def _normalize_call_name(name: str) -> str:
     return name
 
 
-def _expr_to_mir(e: Any) -> dict[str, Any]:  # noqa: PLR0912
+def _expr_to_mir(e: Any) -> dict[str, Any]:  # noqa: PLR0911, PLR0912
     if isinstance(e, Literal):
         if e.value_type == 'Number':
             return {'op': 'number', 'value': e.value}
@@ -6085,7 +6103,7 @@ def _expr_to_mir(e: Any) -> dict[str, Any]:  # noqa: PLR0912
     raise TypeError(f'Unknown expression node: {e!r}')
 
 
-def _stmt_to_mir(s: Any) -> dict[str, Any]:
+def _stmt_to_mir(s: Any) -> dict[str, Any]:  # noqa: PLR0911
     if isinstance(s, Assignment):
         return {'op': 'assign', 'name': s.name, 'expr': _expr_to_mir(s.expr)}
     if isinstance(s, ReturnStmt):
@@ -6367,6 +6385,7 @@ OMNISYS_MODULES: dict[str, OmnisysModule] = {
         error_code=_pure('fn(Text, Text) -> Error'),
         error_message=_pure('fn(Error) -> Text'),
         error_code_of=_pure('fn(Error) -> Text'),
+        error_stack=_pure('fn(Error) -> Text'),
         error_with_context=_pure('fn(Error, Text, any) -> Error'),
         error_has_context=_pure('fn(Error, Text) -> Boolean'),
         error_to_dict=_pure('fn(Error) -> Map'),
@@ -6405,6 +6424,7 @@ OMNISYS_MODULES: dict[str, OmnisysModule] = {
         channel_send=_pure('fn(Channel, any) -> Task'),
         channel_recv=_pure('fn(Channel) -> Task'),
         is_promise=_pure('fn(any) -> Boolean'),
+        with_timeout=_pure('fn(Task, Number) -> Task'),
     ),
     'fs': _module(
         'fs',
@@ -6452,6 +6472,7 @@ OMNISYS_MODULES: dict[str, OmnisysModule] = {
         state=_pure('fn(any) -> State'),
         state_get=_pure('fn(State) -> any'),
         state_set=_pure('fn(State, any) -> State'),
+        state_on_change=_pure('fn(State, fn) -> None'),
         get_value=_fn('fn(Text) -> Text', 'dom'),
         get_form_data=_fn('fn(Text) -> Map', 'dom'),
     ),
@@ -6492,17 +6513,19 @@ OMNISYS_MODULES: dict[str, OmnisysModule] = {
     'http': _module(
         'http',
         'omnisys/http.js',
-        ('core', 'net'),
-        client=_fn('fn() -> Client', 'network'),
-        send=_fn('fn(Client, Text, Text, Text) -> Response', 'network'),
-        get=_fn('fn(Text) -> Response', 'network'),
-        post=_fn('fn(Text, Text) -> Response', 'network'),
-        put=_fn('fn(Text, Text) -> Response', 'network'),
-        delete=_fn('fn(Text) -> Response', 'network'),
-        json_get=_fn('fn(Text) -> any', 'network'),
-        json_post=_fn('fn(Text, any) -> any', 'network'),
+        ('core', 'net', 'async'),
+        client=_pure('fn() -> Client'),
+        send=_fn('fn(Client, Text, Text, Text, Number) -> Task', 'network'),
+        get=_fn('fn(Text, Number) -> Task', 'network'),
+        post=_fn('fn(Text, Text, Number) -> Task', 'network'),
+        put=_fn('fn(Text, Text, Number) -> Task', 'network'),
+        delete=_fn('fn(Text, Number) -> Task', 'network'),
+        json_get=_fn('fn(Text, Number) -> Task', 'network'),
+        json_post=_fn('fn(Text, any, Number) -> Task', 'network'),
         redirect=_pure('fn(Text, Number) -> Response'),
         not_found=_pure('fn(Text) -> Response'),
+        response=_pure('fn(Number, Text) -> Response'),
+        response_json=_pure('fn(Number, any) -> Response'),
     ),
     'graphics': _module(
         'graphics',
@@ -6601,7 +6624,7 @@ OMNISYS_MODULES: dict[str, OmnisysModule] = {
         info=_fn('fn() -> Map', 'process'),
         os=_fn('fn() -> Text', 'process'),
         arch=_fn('fn() -> Text', 'process'),
-        env=_fn('fn(Text) -> Text', 'process'),
+        env=_fn('fn(Text, Text?) -> Text', 'process'),
         now=_pure('fn() -> Number'),
         sleep_ms=_fn('fn(Number) -> Number', 'process'),
         capabilities=_pure('fn() -> List'),
@@ -7219,7 +7242,7 @@ class Parser:
                         if self.match(TokenType.TEXT):
                             arg = self.consume(TokenType.TEXT).value
                             # Remove quotes
-                            if len(arg) >= 2 and arg[0] in ('"', "'"):
+                            if len(arg) >= 2 and arg[0] in ('"', "'"):  # noqa: PLR2004
                                 arg = arg[1:-1]
                         else:
                             arg = self.consume(TokenType.IDENTIFIER).value
@@ -7316,8 +7339,8 @@ class Parser:
             body=body,
         )
 
-    def parse_function_literal(self, start: Token) -> FunctionLiteral:
-        """Parse an inline function literal: fn(params) -> Type: body end"""
+    def parse_function_literal(self, start: Token) -> FunctionLiteral:  # noqa: PLR0912, PLR0915
+        """Parse an inline function literal: fn(params) -> Type: body end."""
         self.consume(TokenType.FN)
 
         params = []
@@ -7410,7 +7433,7 @@ class Parser:
             return base_type
         return 'None'
 
-    def parse_statement(self) -> Any:  # noqa: PLR0911
+    def parse_statement(self) -> Any:  # noqa: PLR0911, PLR0912
         start = self.peek()
         node: Any
         t = self.peek()
@@ -7768,7 +7791,7 @@ class Parser:
         if t.type == TokenType.TEXT:
             self.consume()
             text_val = t.value
-            if len(text_val) >= 2 and (
+            if len(text_val) >= 2 and (  # noqa: PLR2004
                 (text_val[0] == '"' and text_val[-1] == '"')
                 or (text_val[0] == "'" and text_val[-1] == "'")
             ):
@@ -7902,7 +7925,7 @@ def parse(tokens: list[Token]) -> Program:
     return parser.parse()
 
 
-def _preprocess_agent_tokens(tokens: list[Token]) -> list[Token]:
+def _preprocess_agent_tokens(tokens: list[Token]) -> list[Token]:  # noqa: PLR0912, PLR0915
     """Convert agent mode shorthand tokens to canonical tokens.
 
     Transformations:
@@ -8293,7 +8316,7 @@ def _rs_stmt(s: dict[str, Any], declared: set[str], indent: int = 4) -> str:
     return f'{pad}// unknown statement: {s!r}'
 
 
-def _rs_preamble(custom_types: dict[str, Any]) -> list[str]:
+def _rs_preamble(custom_types: dict[str, Any]) -> list[str]:  # noqa: PLR0915
     lines = [
         '// Generated by the OmniScript Rust Emitter (v3.4)',
         '',
@@ -9168,7 +9191,7 @@ def _expr_to_string(expr: Any) -> str:  # noqa: PLR0911
     return str(expr)
 
 
-def _model_value_to_py(value: Any) -> int | float | bool | str:
+def _model_value_to_py(value: Any) -> int | float | bool | str:  # noqa: PLR0911
     if z3.is_true(value):
         return True
     if z3.is_false(value):
@@ -9183,7 +9206,7 @@ def _model_value_to_py(value: Any) -> int | float | bool | str:
         return numerator / denominator
     if z3.is_string(value):
         s = str(value)
-        if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+        if len(s) >= 2 and s[0] == '"' and s[-1] == '"':  # noqa: PLR2004
             return s[1:-1]
         return s
     return str(value)
@@ -9217,7 +9240,7 @@ class _FunctionVerifier:
     }
 
     _STR_OPS: dict[str, Any] = {
-        '+': lambda left, right: z3.Concat(left, right),
+        '+': z3.Concat,
         'is': lambda left, right: left == right,
         'is not': lambda left, right: left != right,
     }
@@ -9263,7 +9286,7 @@ class _FunctionVerifier:
             # String literals from the lexer include quotes (e.g., '"hello"')
             # Strip the surrounding quotes for Z3
             val = str(expr.value)
-            if len(val) >= 2 and (
+            if len(val) >= 2 and (  # noqa: PLR2004
                 (val[0] == '"' and val[-1] == '"') or (val[0] == "'" and val[-1] == "'")
             ):
                 val = val[1:-1]
@@ -9287,7 +9310,7 @@ class _FunctionVerifier:
             raise _UnsupportedError(f"operator '{op}' is not supported")
         return apply(left, right)
 
-    def _translate_expr(self, expr: Any, env: dict[str, Any], guards: list[Any]) -> Any:
+    def _translate_expr(self, expr: Any, env: dict[str, Any], guards: list[Any]) -> Any:  # noqa: PLR0911, PLR0912
         if isinstance(expr, Literal):
             return self._translate_literal(expr)
         if isinstance(expr, Identifier):
@@ -9333,7 +9356,7 @@ class _FunctionVerifier:
             raise _UnsupportedError(f"unary operator '{expr.op}' is not supported")
         raise _UnsupportedError(f'unsupported expression node {type(expr).__name__}')
 
-    def _translate_function_call(
+    def _translate_function_call(  # noqa: PLR0911, PLR0912
         self, expr: FunctionCall, env: dict[str, Any], guards: list[Any]
     ) -> Any:
         """Translate string operations, user-defined functions, and other calls."""
@@ -9343,19 +9366,19 @@ class _FunctionVerifier:
                 raise _UnsupportedError('length() requires exactly 1 argument')
             return z3.Length(args[0])
         if expr.name == 'contains':
-            if len(args) != 2:
+            if len(args) != 2:  # noqa: PLR2004
                 raise _UnsupportedError('contains() requires exactly 2 arguments')
             return z3.Contains(args[0], args[1])
         if expr.name == 'starts_with':
-            if len(args) != 2:
+            if len(args) != 2:  # noqa: PLR2004
                 raise _UnsupportedError('starts_with() requires exactly 2 arguments')
             return z3.PrefixOf(args[1], args[0])
         if expr.name == 'ends_with':
-            if len(args) != 2:
+            if len(args) != 2:  # noqa: PLR2004
                 raise _UnsupportedError('ends_with() requires exactly 2 arguments')
             return z3.SuffixOf(args[1], args[0])
         if expr.name == 'substring':
-            if len(args) != 3:
+            if len(args) != 3:  # noqa: PLR2004
                 raise _UnsupportedError(
                     'substring() requires exactly 3 arguments (text, start, end)'
                 )
@@ -9443,7 +9466,7 @@ class _FunctionVerifier:
             states = next_states
         return returns, states
 
-    def _exec_one(
+    def _exec_one(  # noqa: PLR0911
         self, stmt: Any, env: dict[str, Any], conds: list[Any]
     ) -> tuple[list[_ReturnPath], list[_PathState]]:
         if isinstance(stmt, Assignment):

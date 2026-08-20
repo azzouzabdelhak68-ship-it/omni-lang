@@ -149,9 +149,24 @@
   }
 
   pkg.compute_checksum = function (content) {
-    // Synchronous fallback for non-async contexts (uses sync hash if available)
-    // In browser/Node, we return a promise; the caller should await.
-    return sha256Hex(content);
+    // Synchronous checksum matching the declared pure signature fn(Text) -> Text.
+    // Prefers Node crypto when available; falls back to a portable FNV-1a hash.
+    if (typeof require !== "undefined") {
+      try {
+        const crypto = require("crypto");
+        return "sha256:" + crypto.createHash("sha256").update(String(content)).digest("hex");
+      } catch (e) {
+        // fall through to the portable hash
+      }
+    }
+    let h1 = 0x811c9dc5;
+    let h2 = 0x01000193;
+    const s = String(content);
+    for (let i = 0; i < s.length; i++) {
+      const code = s.charCodeAt(i);
+      h1 = Math.imul(h1 ^ code, h2) >>> 0;
+    }
+    return "fnv1a:" + h1.toString(16).padStart(8, "0");
   };
 
   // ---------- Lockfile ----------
@@ -365,15 +380,28 @@
   pkg.create = function (name, version, deps) {
     return { tag: "package", name: String(name), version: String(version), dependencies: deps || {} };
   };
-  pkg.registry_add = function (registry, spec, version) {
-    const name = spec.name;
-    registry[name] = registry[name] || {};
-    registry[name][spec.version] = {
-      name: name,
-      version: spec.version,
-      dependencies: spec.dependencies || {},
+  pkg.registry_add = function (registry, name, spec) {
+    // Declared contract: fn(Map, Text, Map) -> Map — registry, name, spec.
+    // Legacy shape registry_add(registry, spec, version) is also tolerated.
+    let key;
+    let entry;
+    let alias;
+    if (typeof name === "string" && spec && typeof spec === "object") {
+      key = String(name);
+      entry = spec;
+      alias = undefined;
+    } else {
+      key = String(name.name);
+      entry = name;
+      alias = spec;
+    }
+    registry[key] = registry[key] || {};
+    registry[key][String(entry.version)] = {
+      name: key,
+      version: String(entry.version),
+      dependencies: entry.dependencies || {},
     };
-    if (version !== undefined) registry[version] = registry[name];
+    if (alias !== undefined && alias !== null) registry[String(alias)] = registry[key];
     return registry;
   };
   pkg.registry_get = function (registry, name, version) {
@@ -387,13 +415,17 @@
   pkg.resolve = function (name, version, registry) {
     const seen = {};
     const order = [];
-    const queue = [{ name: String(name), version: String(version || "latest") }];
+    const queue = [{ name: String(name), version: String(version || "*") }];
     while (queue.length > 0) {
       const req = queue.shift();
       const key = req.name + "@" + req.version;
       if (seen[key]) continue;
       seen[key] = true;
-      const spec = pkg.registry_get(registry, req.name, req.version);
+      // Resolve the constraint to the best matching concrete version rather
+      // than treating it as an exact registry key (declared fn(Text, Text, Map)).
+      const selected = selectBestVersion(registry, req.name, req.version, null);
+      if (!selected) continue;
+      const spec = pkg.registry_get(registry, req.name, selected);
       if (!spec) continue;
       order.push(spec);
       const deps = spec.dependencies || {};

@@ -1,0 +1,72 @@
+# Probe 2: to_text, 3-arg log, warn/error, join, interpolation, structs, trace round-trip
+import OMNISYS.core
+import OMNISYS.collections
+import OMNISYS.observability
+
+type TaskEvent = { name: Text, status: Text, code: Number }
+
+fn record_task(ev: TaskEvent) -> Text:
+    pure
+    omnisys.observability.log("debug", ev.name, {"status": ev.status, "code": ev.code})
+    return ev.name
+end
+
+fn count_logs() -> Number:
+    pure
+    snap = omnisys.observability.snapshot()
+    logs = omnisys.collections.map_get(snap, "logs")
+    return omnisys.core.length(logs)
+end
+
+fn count_traces() -> Number:
+    pure
+    snap = omnisys.observability.snapshot()
+    traces = omnisys.collections.map_get(snap, "traces")
+    return omnisys.core.length(traces)
+end
+
+fn read_metric(name: Text) -> Number:
+    pure
+    return omnisys.observability.metric_value(name)
+end
+
+when app starts:
+    omnisys.observability.clear()
+    omnisys.observability.metric("tasks_total", 10)
+    omnisys.observability.metric("tasks_failed", 2)
+    omnisys.observability.metric("queue_depth", 4)
+
+    omnisys.observability.info("app booted", {"seq": 1})
+    omnisys.observability.warn("retry scheduled", {"attempts": 2})
+    omnisys.observability.error("task failed", {"task": "t-9", "code": 500})
+
+    ev = TaskEvent(name = "t-42", status = "ok", code = 200)
+    nm = record_task(ev)
+    show "recorded: " + nm
+
+    t1 = omnisys.observability.trace_begin("load_step")
+    t2 = omnisys.observability.trace_begin("render_step")
+    omnisys.observability.trace_end(t1, {"step": "load", "ok": true})
+    omnisys.observability.trace_end(t2, {"step": "render", "ok": false})
+
+    show "logs: " + count_logs()
+    show "traces: " + count_traces()
+    show "tasks_total: " + read_metric("tasks_total")
+    show "missing_metric_defaults_to_0: " + read_metric("does_not_exist")
+
+    parts = ["a", "b", "c"]
+    show "joined: " + join(parts, ",")
+    show "len: " + omnisys.core.length("hello")
+    show "split2: " + omnisys.core.split("x,y,z", ",")[1]
+
+    greeting = "bob"
+    show "interp: Hello, {greeting}"
+
+    full = omnisys.observability.snapshot()
+    logs_len = omnisys.core.length(omnisys.collections.map_get(full, "logs"))
+    metrics_keys = omnisys.collections.map_keys(omnisys.collections.map_get(full, "metrics"))
+    traces_len = omnisys.core.length(omnisys.collections.map_get(full, "traces"))
+    show "snapshot logs: " + logs_len
+    show "snapshot metrics keys: " + omnisys.collections.map_size(metrics_keys)
+    show "snapshot traces: " + traces_len
+end

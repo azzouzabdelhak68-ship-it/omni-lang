@@ -1,0 +1,8 @@
+type InspectionResult = {
+  status: Text,
+  tests_passed: Number,
+}
+
+when app starts:
+  show "hello"
+end

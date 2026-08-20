@@ -1,0 +1,49 @@
+# Probe 6: string ops, while loop, token access, map building
+import OMNISYS.core
+import OMNISYS.tool
+import OMNISYS.collections
+
+fn lstrip(line: Text) -> Text:
+    pure
+    idx = 0
+    n = omnisys.core.length(line)
+    while idx < n:
+        ch = omnisys.core.char_at(line, idx)
+        if ch is " ":
+            idx = idx + 1
+        else:
+            break
+        end
+    end
+    return omnisys.core.substring(line, idx, n)
+end
+
+fn starts_with(line: Text, prefix: Text) -> Boolean:
+    pure
+    plen = omnisys.core.length(prefix)
+    llen = omnisys.core.length(line)
+    if llen < plen:
+        return false
+    end
+    return omnisys.core.substring(line, 0, plen) is prefix
+end
+
+fn token_values(text: Text) -> List:
+    pure
+    tokens = omnisys.tool.tokenize(text)
+    first = omnisys.collections.list_get(tokens, 0)
+    out = omnisys.collections.list_push([], first["value"])
+    return out
+end
+
+when app starts:
+    stripped = lstrip("   fn hello()")
+    show "stripped: " + stripped
+    sw = starts_with("fn hello()", "fn ")
+    show "sw: " + sw
+    app_n = omnisys.core.length("abc")
+    app_sub = omnisys.core.substring("abcdef", 1, 4)
+    show "sub: " + app_sub
+    app_lines = omnisys.core.split("a\nb\nc", "\n")
+    show "line count: " + omnisys.core.length(app_lines)
+end

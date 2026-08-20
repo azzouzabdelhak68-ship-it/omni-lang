@@ -1,0 +1,359 @@
+# Project Inspection Tooling — Project 5.4
+# An AI-native source-inspection utility for OmniScript projects.
+#
+# Analyzes OmniScript source text and project directories:
+#   - tokenizes source and counts tokens, lines, identifiers
+#   - extracts structure: functions, capability declarations, imports,
+#     construct keywords
+#   - checks the status of files (existence, size) and runs the omni
+#     compiler CLI diagnostics (check / explain) on each source file
+#   - emits a structured JSON report
+#
+# Capability policy: every function that reaches for OMNISYS.fs declares
+# `uses filesystem`; every function that invokes the compiler CLI through
+# OMNISYS.tool.check/explain declares `uses process`. Each capability call
+# is wrapped in try/on error so the tool degrades gracefully when a lane
+# cannot provide the capability (e.g. the browser/vm lane).
+
+import OMNISYS.core
+import OMNISYS.tool
+import OMNISYS.fs
+import OMNISYS.collections
+import OMNISYS.serde
+
+# =============================================================================
+# PURE TEXT HELPERS
+# =============================================================================
+
+type FileReport = {
+    name: Text,
+    path: Text,
+    exists: Boolean,
+    size: Number,
+    lines: Number,
+    tokens: Number,
+    identifiers: Number,
+    functions: List,
+    capabilities: List,
+    imports: List,
+    constructs: List,
+    status: Text,
+    check: Text
+}
+
+fn lstrip(line: Text) -> Text:
+    pure
+    idx = 0
+    n = omnisys.core.length(line)
+    while idx < n:
+        ch = omnisys.core.char_at(line, idx)
+        if ch is " ":
+            idx = idx + 1
+        else:
+            break
+        end
+    end
+    return omnisys.core.substring(line, idx, n)
+end
+
+fn starts_with(line: Text, prefix: Text) -> Boolean:
+    pure
+    plen = omnisys.core.length(prefix)
+    llen = omnisys.core.length(line)
+    if llen < plen:
+        return false
+    end
+    return omnisys.core.substring(line, 0, plen) is prefix
+end
+
+fn ends_with(text: Text, suffix: Text) -> Boolean:
+    pure
+    text_len = omnisys.core.length(text)
+    suffix_len = omnisys.core.length(suffix)
+    if text_len < suffix_len:
+        return false
+    end
+    return omnisys.core.substring(text, text_len - suffix_len, text_len) is suffix
+end
+
+fn extract_fn_name(line: Text) -> Text:
+    pure
+    rest = omnisys.core.substring(line, 3, omnisys.core.length(line))
+    idx = 0
+    n = omnisys.core.length(rest)
+    while idx < n:
+        ch = omnisys.core.char_at(rest, idx)
+        if ch is "(":
+            break
+        end
+        idx = idx + 1
+    end
+    return omnisys.core.substring(rest, 0, idx)
+end
+
+fn extract_functions(text: Text) -> List:
+    pure
+    lines = omnisys.core.split(text, "\n")
+    out = []
+    for line in lines:
+        clean = lstrip(line)
+        if starts_with(clean, "fn "):
+            out = omnisys.collections.list_push(out, extract_fn_name(clean))
+        end
+    end
+    return out
+end
+
+fn extract_capabilities(text: Text) -> List:
+    pure
+    lines = omnisys.core.split(text, "\n")
+    out = []
+    for line in lines:
+        clean = lstrip(line)
+        if starts_with(clean, "uses "):
+            cap = omnisys.core.substring(clean, 5, omnisys.core.length(clean))
+            out = omnisys.collections.list_push(out, cap)
+        else:
+            if clean is "pure":
+                out = omnisys.collections.list_push(out, "pure")
+            end
+        end
+    end
+    return out
+end
+
+fn extract_imports(text: Text) -> List:
+    pure
+    lines = omnisys.core.split(text, "\n")
+    out = []
+    for line in lines:
+        clean = lstrip(line)
+        if starts_with(clean, "import "):
+            mod = omnisys.core.substring(clean, 7, omnisys.core.length(clean))
+            out = omnisys.collections.list_push(out, mod)
+        end
+    end
+    return out
+end
+
+fn count_prefix(text: Text, prefix: Text) -> Number:
+    pure
+    lines = omnisys.core.split(text, "\n")
+    total = 0
+    for line in lines:
+        clean = lstrip(line)
+        if starts_with(clean, prefix):
+            total = total + 1
+        end
+    end
+    return total
+end
+
+fn build_constructs(text: Text) -> List:
+    pure
+    out = []
+    out = omnisys.collections.list_push(out, "fn:" + count_prefix(text, "fn "))
+    out = omnisys.collections.list_push(out, "type:" + count_prefix(text, "type "))
+    out = omnisys.collections.list_push(out, "if:" + count_prefix(text, "if "))
+    out = omnisys.collections.list_push(out, "for:" + count_prefix(text, "for "))
+    out = omnisys.collections.list_push(out, "while:" + count_prefix(text, "while "))
+    out = omnisys.collections.list_push(out, "try:" + count_prefix(text, "try:"))
+    out = omnisys.collections.list_push(out, "show:" + count_prefix(text, "show "))
+    return out
+end
+
+fn count_lines(text: Text) -> Number:
+    pure
+    return omnisys.tool.line_count(text)
+end
+
+fn count_tokens(text: Text) -> Number:
+    pure
+    return omnisys.core.length(omnisys.tool.tokenize(text))
+end
+
+fn count_identifiers(text: Text) -> Number:
+    pure
+    return omnisys.tool.identifier_count(text)
+end
+
+fn inspect_source_text(text: Text) -> Map:
+    pure
+    report = omnisys.collections.map_set({}, "lines", count_lines(text))
+    report = omnisys.collections.map_set(report, "tokens", count_tokens(text))
+    report = omnisys.collections.map_set(report, "identifiers", count_identifiers(text))
+    report = omnisys.collections.map_set(report, "functions", extract_functions(text))
+    report = omnisys.collections.map_set(report, "capabilities", extract_capabilities(text))
+    report = omnisys.collections.map_set(report, "imports", extract_imports(text))
+    report = omnisys.collections.map_set(report, "constructs", build_constructs(text))
+    return report
+end
+
+# =============================================================================
+# FILESYSTEM CAPABILITY WRAPPERS (graceful degradation)
+# =============================================================================
+
+fn file_exists_safe(path: Text) -> Boolean:
+    uses filesystem
+    out = false
+    try:
+        out = omnisys.fs.file_exists(path)
+    on error:
+        out = false
+    end
+    return out
+end
+
+fn file_size_safe(path: Text) -> Number:
+    uses filesystem
+    out = -1
+    try:
+        out = omnisys.fs.file_size(path)
+    on error:
+        out = -1
+    end
+    return out
+end
+
+fn read_source_safe(path: Text) -> Text:
+    uses filesystem
+    out = ""
+    try:
+        out = omnisys.fs.read_file(path)
+    on error:
+        out = ""
+    end
+    return out
+end
+
+fn list_source_dir_safe(dir: Text) -> List:
+    uses filesystem
+    out = []
+    try:
+        out = omnisys.fs.list_dir(dir)
+    on error:
+        out = []
+    end
+    return out
+end
+
+# =============================================================================
+# PROCESS CAPABILITY WRAPPERS (compiler CLI via OMNISYS.tool)
+# =============================================================================
+
+fn tool_check_safe(path: Text) -> Map:
+    uses process
+    out = omnisys.collections.map_set({}, "ok", false)
+    out = omnisys.collections.map_set(out, "status", "unavailable")
+    out = omnisys.collections.map_set(out, "diagnostic", "")
+    try:
+        check_result = omnisys.tool.check(path)
+        out = omnisys.collections.map_set(out, "ok", check_result["ok"])
+        if check_result["ok"]:
+            out = omnisys.collections.map_set(out, "status", "clean")
+        else:
+            out = omnisys.collections.map_set(out, "status", "issues")
+        end
+        out = omnisys.collections.map_set(out, "diagnostic", omnisys.serde.json_encode(check_result["diagnostic"]))
+    on error:
+        out = omnisys.collections.map_set(out, "status", "unavailable")
+    end
+    return out
+end
+
+fn tool_explain_safe(path: Text) -> Map:
+    uses process
+    out = omnisys.collections.map_set({}, "ok", false)
+    out = omnisys.collections.map_set(out, "status", "unavailable")
+    out = omnisys.collections.map_set(out, "diagnostic", "")
+    try:
+        explain_result = omnisys.tool.explain(path)
+        out = omnisys.collections.map_set(out, "ok", explain_result["ok"])
+        if explain_result["ok"]:
+            out = omnisys.collections.map_set(out, "status", "clean")
+        else:
+            out = omnisys.collections.map_set(out, "status", "issues")
+        end
+        out = omnisys.collections.map_set(out, "diagnostic", omnisys.serde.json_encode(explain_result["diagnostic"]))
+    on error:
+        out = omnisys.collections.map_set(out, "status", "unavailable")
+    end
+    return out
+end
+
+# =============================================================================
+# REPORT BUILDERS
+# =============================================================================
+
+fn build_file_entry(name: Text, dir: Text) -> FileReport:
+    uses filesystem
+    uses process
+    path = omnisys.fs.join_path(dir, name)
+    exists = file_exists_safe(path)
+    size = file_size_safe(path)
+    source_text = read_source_safe(path)
+    metrics = inspect_source_text(source_text)
+    check_map = tool_check_safe(path)
+    return FileReport(
+        name = name,
+        path = path,
+        exists = exists,
+        size = size,
+        lines = metrics["lines"],
+        tokens = metrics["tokens"],
+        identifiers = metrics["identifiers"],
+        functions = metrics["functions"],
+        capabilities = metrics["capabilities"],
+        imports = metrics["imports"],
+        constructs = metrics["constructs"],
+        status = check_map["status"],
+        check = check_map["diagnostic"]
+    )
+end
+
+fn inspect_project(dir: Text) -> Text:
+    uses filesystem
+    uses process
+    names = list_source_dir_safe(dir)
+    files = []
+    total_lines = 0
+    total_tokens = 0
+    total_identifiers = 0
+    total_functions = 0
+    total_capabilities = 0
+    for name in names:
+        if ends_with(name, ".omni"):
+            entry = build_file_entry(name, dir)
+            files = omnisys.collections.list_push(files, entry)
+            total_lines = total_lines + entry.lines
+            total_tokens = total_tokens + entry.tokens
+            total_identifiers = total_identifiers + entry.identifiers
+            total_functions = total_functions + omnisys.core.length(entry.functions)
+            total_capabilities = total_capabilities + omnisys.core.length(entry.capabilities)
+        end
+    end
+    summary = omnisys.collections.map_set({}, "files", omnisys.core.length(files))
+    summary = omnisys.collections.map_set(summary, "lines", total_lines)
+    summary = omnisys.collections.map_set(summary, "tokens", total_tokens)
+    summary = omnisys.collections.map_set(summary, "identifiers", total_identifiers)
+    summary = omnisys.collections.map_set(summary, "functions", total_functions)
+    summary = omnisys.collections.map_set(summary, "capabilities", total_capabilities)
+    report = omnisys.collections.map_set({}, "tool", "project-inspector")
+    report = omnisys.collections.map_set(report, "target", dir)
+    report = omnisys.collections.map_set(report, "sources", files)
+    report = omnisys.collections.map_set(report, "summary", summary)
+    return omnisys.serde.json_encode(report)
+end
+
+# =============================================================================
+# ENTRY POINT
+# =============================================================================
+
+when app starts:
+    app_target = "source"
+    app_inline = "fn add(a: Number, b: Number) -> Number:\n    pure\n    return a + b\nend\nimport OMNISYS.core\n"
+    app_inline_report = inspect_source_text(app_inline)
+    show "inline-metrics: " + omnisys.serde.json_encode(app_inline_report)
+    app_project_report = inspect_project(app_target)
+    show "project-report: " + app_project_report
+end

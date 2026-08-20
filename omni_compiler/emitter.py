@@ -170,8 +170,8 @@ def _js_expr(e: dict[str, Any], params: set[str]) -> str:  # noqa: PLR0911, PLR0
         pairs = []
         for k, v in e['items'].items():
             quoted = _js_text('"' + k + '"')
-            pairs.append(f'[{quoted}, {_js_expr(v, params)}]')
-        return 'new Map([' + ', '.join(pairs) + '])'
+            pairs.append(f'{quoted}: {_js_expr(v, params)}')
+        return '{' + ', '.join(pairs) + '}'
     if op == 'index':
         return f'{_js_expr(e["object"], params)}[{_js_expr(e["index"], params)}]'
     if op == 'await':
@@ -598,6 +598,10 @@ def emit_js(mir: Any) -> str:  # noqa: PLR0915
     js.append('  });')
     js.append('}')
     js.append('bindClicks();')
+    js.append(
+        'if (typeof omnisys !== "undefined" && omnisys.ui) '
+        'omnisys.ui._setGlobalOnStateChange(batchUpdate);'
+    )
 
     scene_js = _js_scene(mir)
     if scene_js:

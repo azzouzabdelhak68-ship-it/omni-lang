@@ -1,0 +1,10 @@
+import OMNISYS.core
+
+fn txt(v: Number) -> Text:
+    pure
+    return omnisys.core.to_text(v)
+end
+
+when app starts:
+    show txt(42)
+end

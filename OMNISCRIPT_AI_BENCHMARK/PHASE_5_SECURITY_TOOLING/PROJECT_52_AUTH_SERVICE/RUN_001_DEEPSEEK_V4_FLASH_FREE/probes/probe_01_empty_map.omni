@@ -1,0 +1,16 @@
+# Probe 1: empty map literal {} and map ops (5.5 run claimed {} is rejected by parser)
+import OMNISYS.collections
+import OMNISYS.core
+
+when app starts:
+    store = {}
+    show "empty map ok"
+    filled = {k: 1, name: "alice"}
+    v = omnisys.collections.map_get(filled, "name")
+    show "got: " + v
+    store2 = omnisys.collections.map_set(filled, "role", "admin")
+    has_role = omnisys.collections.map_has(store2, "role")
+    show "has_role: " + has_role
+    keys = omnisys.collections.map_keys(store2)
+    show "keys count: " + omnisys.core.length(keys)
+end

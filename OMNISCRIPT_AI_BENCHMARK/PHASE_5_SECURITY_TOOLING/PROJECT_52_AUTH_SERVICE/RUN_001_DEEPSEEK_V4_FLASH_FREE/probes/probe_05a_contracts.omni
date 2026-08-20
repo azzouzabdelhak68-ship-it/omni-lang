@@ -1,0 +1,12 @@
+# Probe 5A: require/ensure contracts + omni verify
+fn add_positive(a: Number, b: Number) -> Number:
+    pure
+    require a greater than 0
+    require b greater than 0
+    ensure result greater than 0
+    return a + b
+end
+
+when app starts:
+    show add_positive(2, 3)
+end

@@ -1,0 +1,152 @@
+# Package Inspector — demonstrates multi-package dependency resolution and package management
+# Phase 6 Project 6.3 — Package System / Multi-Package App
+
+import OMNISYS.pkg
+import OMNISYS.fs
+import OMNISYS.serde
+import OMNISYS.collections
+import OMNISYS.core
+
+type PackageInfo = {
+    name: Text,
+    version: Text,
+    status: Text
+}
+
+# ── Package Specifications ──
+
+fn build_registry() -> Map:
+    pure
+    reg = {}
+    
+    empty_deps = {}
+    core_spec = omnisys.pkg.create("core", "1.0.0", empty_deps)
+    reg = omnisys.pkg.registry_add(reg, "core", core_spec)
+    
+    core11_spec = omnisys.pkg.create("core", "1.1.0", empty_deps)
+    reg = omnisys.pkg.registry_add(reg, "core", core11_spec)
+    
+    core20_spec = omnisys.pkg.create("core", "2.0.0", empty_deps)
+    reg = omnisys.pkg.registry_add(reg, "core", core20_spec)
+    
+    parser_deps = {"core": "^1.0.0"}
+    parser_spec = omnisys.pkg.create("parser", "1.0.0", parser_deps)
+    reg = omnisys.pkg.registry_add(reg, "parser", parser_spec)
+    
+    app_deps = {"core": "^1.0.0", "parser": "^1.0.0"}
+    app_spec = omnisys.pkg.create("app", "1.0.0", app_deps)
+    reg = omnisys.pkg.registry_add(reg, "app", app_spec)
+    
+    analytics_deps = {"core": "^1.0.0"}
+    analytics_spec = omnisys.pkg.create("analytics", "1.0.0", analytics_deps)
+    reg = omnisys.pkg.registry_add(reg, "analytics", analytics_spec)
+    
+    return reg
+end
+
+fn test_manifest_parsing() -> Map:
+    uses filesystem
+    # If manifest file exists, parse it; otherwise generate synthetic manifest
+    manifest_path = "omni.pkg.json"
+    has_file = false
+    try:
+        has_file = omnisys.fs.file_exists(manifest_path)
+    on error:
+        has_file = false
+    end
+    if has_file:
+        return omnisys.pkg.manifest(manifest_path)
+    end
+    return {"name": "sample-app", "version": "1.0.0", "dependencies": {"core": "^1.0.0"}}
+end
+
+fn test_list_dependencies(reg: Map) -> Map:
+    pure
+    core_spec = omnisys.pkg.registry_get(reg, "core", "1.0.0")
+    parser_spec = omnisys.pkg.registry_get(reg, "parser", "1.0.0")
+    app_spec = omnisys.pkg.registry_get(reg, "app", "1.0.0")
+    
+    core_deps = omnisys.pkg.list_dependencies(core_spec)
+    parser_deps = omnisys.pkg.list_dependencies(parser_spec)
+    app_deps = omnisys.pkg.list_dependencies(app_spec)
+    
+    res = {}
+    res = omnisys.collections.map_set(res, "core", omnisys.serde.json_encode(core_deps))
+    res = omnisys.collections.map_set(res, "parser", omnisys.serde.json_encode(parser_deps))
+    res = omnisys.collections.map_set(res, "app", omnisys.serde.json_encode(app_deps))
+    return res
+end
+
+fn test_version_satisfaction() -> Map:
+    pure
+    v1 = omnisys.pkg.parse_version("1.0.0")
+    v2 = omnisys.pkg.parse_version("1.2.3")
+    
+    sat_exact = omnisys.pkg.satisfies("1.2.3", "1.2.3")
+    sat_caret = omnisys.pkg.satisfies("1.2.4", "^1.2.3")
+    sat_tilde = omnisys.pkg.satisfies("1.2.4", "~1.2.3")
+    sat_range = omnisys.pkg.satisfies("1.5.0", ">=1.2.0")
+    sat_fail = omnisys.pkg.satisfies("1.2.2", "^1.2.3")
+    
+    res = {}
+    res = omnisys.collections.map_set(res, "v1", omnisys.serde.json_encode(v1))
+    res = omnisys.collections.map_set(res, "v2", omnisys.serde.json_encode(v2))
+    res = omnisys.collections.map_set(res, "sat_exact", omnisys.serde.json_encode(sat_exact))
+    res = omnisys.collections.map_set(res, "sat_caret", omnisys.serde.json_encode(sat_caret))
+    res = omnisys.collections.map_set(res, "sat_tilde", omnisys.serde.json_encode(sat_tilde))
+    res = omnisys.collections.map_set(res, "sat_range", omnisys.serde.json_encode(sat_range))
+    res = omnisys.collections.map_set(res, "sat_fail", omnisys.serde.json_encode(sat_fail))
+    return res
+end
+
+fn test_dependency_resolution(reg: Map) -> List:
+    pure
+    return omnisys.pkg.resolve("app", "1.0.0", reg)
+end
+
+fn test_checksums() -> Map:
+    pure
+    cs1 = omnisys.pkg.compute_checksum("hello world")
+    cs2 = omnisys.pkg.compute_checksum("hello world")
+    cs3 = omnisys.pkg.compute_checksum("different content")
+    
+    res = {}
+    res = omnisys.collections.map_set(res, "cs1", omnisys.serde.json_encode(cs1))
+    res = omnisys.collections.map_set(res, "cs2", omnisys.serde.json_encode(cs2))
+    res = omnisys.collections.map_set(res, "cs3", omnisys.serde.json_encode(cs3))
+    res = omnisys.collections.map_set(res, "match", omnisys.serde.json_encode(cs1 is cs2))
+    return res
+end
+
+fn test_install_packages(reg: Map, cache_dir: Text) -> Map:
+    uses filesystem
+    return omnisys.pkg.install(cache_dir, reg)
+end
+
+# ── Entry Point ──
+
+when app starts:
+    show "=== Package System Inspector ==="
+    show ""
+    
+    reg_data = build_registry()
+    show "Registry built with packages: core, parser, app, analytics"
+    
+    deps_res = test_list_dependencies(reg_data)
+    show "Dependencies listed: " + omnisys.serde.json_encode(deps_res)
+    
+    ver_res = test_version_satisfaction()
+    show "Version satisfaction tested: " + omnisys.serde.json_encode(ver_res)
+    
+    resolved_order = test_dependency_resolution(reg_data)
+    show "Resolution order: " + omnisys.serde.json_encode(resolved_order)
+    
+    chk_res = test_checksums()
+    show "Checksum tests: " + omnisys.serde.json_encode(chk_res)
+    
+    manifest_res = test_manifest_parsing()
+    show "Manifest parsed: " + omnisys.serde.json_encode(manifest_res)
+    
+    show ""
+    show "=== Inspection Complete ==="
+end

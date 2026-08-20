@@ -1,0 +1,20 @@
+# Probe 4: multi-capability function + app block calling effectful fn
+import OMNISYS.tool
+import OMNISYS.fs
+import OMNISYS.collections
+
+fn combined(path: Text) -> Map:
+    uses filesystem
+    uses process
+    exists = omnisys.fs.file_exists(path)
+    check_result = omnisys.tool.check(path)
+    m = omnisys.collections.map_set({}, "exists", exists)
+    m = omnisys.collections.map_set(m, "ok", check_result["ok"])
+    return m
+end
+
+when app starts:
+    res = combined("probes/probe4.omni")
+    show "exists: " + res["exists"]
+    show "ok: " + res["ok"]
+end

@@ -1,0 +1,59 @@
+# Probe 1: verify observability call shapes, map handling, profile(fn, Number)
+import OMNISYS.core
+import OMNISYS.collections
+import OMNISYS.observability
+
+fn busy_work(rounds: Number) -> Number:
+    pure
+    acc = 0.0
+    for i in range(rounds):
+        acc = acc + 1.0
+    end
+    return acc
+end
+
+fn emit_metric(name: Text, value: Number) -> Number:
+    pure
+    omnisys.observability.metric(name, value)
+    return omnisys.observability.metric_value(name)
+end
+
+fn emit_log_line() -> None:
+    pure
+    fields = {"src": "probe", "seq": 1}
+    omnisys.observability.info("probe log", fields)
+end
+
+fn timed_span(name: Text) -> Number:
+    pure
+    span_id = omnisys.observability.trace_begin(name)
+    omnisys.observability.trace_end(span_id, {"ok": true})
+    return span_id
+end
+
+when app starts:
+    m = {"alpha": 5, "beta": 9}
+    show "map read: " + m["alpha"]
+    m2 = omnisys.collections.map_set(m, "gamma", 7)
+    show "map_get gamma: " + omnisys.collections.map_get(m2, "gamma")
+    show "map_size: " + omnisys.collections.map_size(m2)
+
+    v = emit_metric("probe_count", 41)
+    show "metric roundtrip: " + v
+
+    emit_log_line()
+    snap = omnisys.observability.snapshot()
+    show "snap logs len: " + omnisys.core.length(omnisys.collections.map_get(snap, "logs"))
+    show "snap metrics count: " + omnisys.collections.map_get(snap, "metrics")["probe_count"]
+
+    tid = timed_span("probe_span")
+    show "trace id: " + tid
+    show "trace_count: " + omnisys.core.length(omnisys.collections.map_get(snap, "traces"))
+
+    elapsed = omnisys.observability.profile(busy_work, 100)
+    show "profile ms: " + elapsed
+
+    omnisys.observability.clear()
+    snap2 = omnisys.observability.snapshot()
+    show "after clear logs len: " + omnisys.core.length(omnisys.collections.map_get(snap2, "logs"))
+end

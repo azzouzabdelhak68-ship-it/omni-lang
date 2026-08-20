@@ -1,0 +1,132 @@
+# Probe: AI tensor operations
+
+import OMNISYS.ai
+import OMNISYS.core
+import OMNISYS.serde
+
+fn test_tensor_creation() -> Text:
+    pure
+    # Create a 2x3 tensor
+    shape = [2, 3]
+    data = [1, 2, 3, 4, 5, 6]
+    t = omnisys.ai.tensor(shape, data)
+    s = omnisys.ai.tensor_shape(t)
+    return "shape: " + omnisys.serde.json_encode(s)
+end
+
+fn test_tensor_zeros() -> Text:
+    pure
+    t = omnisys.ai.tensor_zeros([3, 4])
+    s = omnisys.ai.tensor_shape(t)
+    return "zeros shape: " + omnisys.serde.json_encode(s)
+end
+
+fn test_tensor_ones() -> Text:
+    pure
+    t = omnisys.ai.tensor_ones([2, 2])
+    s = omnisys.ai.tensor_shape(t)
+    return "ones shape: " + omnisys.serde.json_encode(s)
+end
+
+fn test_tensor_add() -> Text:
+    pure
+    a = omnisys.ai.tensor([2, 2], [1, 2, 3, 4])
+    b = omnisys.ai.tensor([2, 2], [5, 6, 7, 8])
+    c = omnisys.ai.tensor_add(a, b)
+    js = omnisys.ai.tensor_to_json(c)
+    return "add: " + omnisys.serde.json_encode(js)
+end
+
+fn test_tensor_scale() -> Text:
+    pure
+    a = omnisys.ai.tensor([2, 2], [1, 2, 3, 4])
+    c = omnisys.ai.tensor_scale(a, 2)
+    js = omnisys.ai.tensor_to_json(c)
+    return "scale: " + omnisys.serde.json_encode(js)
+end
+
+fn test_tensor_matmul() -> Text:
+    pure
+    # [2,3] x [3,2] -> [2,2]
+    a = omnisys.ai.tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    b = omnisys.ai.tensor([3, 2], [7, 8, 9, 10, 11, 12])
+    c = omnisys.ai.tensor_matmul(a, b)
+    js = omnisys.ai.tensor_to_json(c)
+    return "matmul: " + omnisys.serde.json_encode(js)
+end
+
+fn test_tensor_relu() -> Text:
+    pure
+    a = omnisys.ai.tensor([2, 2], [-1, 2, -3, 4])
+    c = omnisys.ai.tensor_relu(a)
+    js = omnisys.ai.tensor_to_json(c)
+    return "relu: " + omnisys.serde.json_encode(js)
+end
+
+fn test_tensor_sigmoid() -> Text:
+    pure
+    a = omnisys.ai.tensor([2, 2], [0, 1, -1, 2])
+    c = omnisys.ai.tensor_sigmoid(a)
+    js = omnisys.ai.tensor_to_json(c)
+    return "sigmoid: " + omnisys.serde.json_encode(js)
+end
+
+fn test_tensor_sum() -> Text:
+    pure
+    a = omnisys.ai.tensor([2, 2], [1, 2, 3, 4])
+    s = omnisys.ai.tensor_sum(a)
+    return "sum: " + omnisys.serde.json_encode(s)
+end
+
+fn test_tensor_json_roundtrip() -> Text:
+    pure
+    a = omnisys.ai.tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    js = omnisys.ai.tensor_to_json(a)
+    b = omnisys.ai.tensor_from_json(js)
+    js2 = omnisys.ai.tensor_to_json(b)
+    return "roundtrip: " + omnisys.serde.json_encode(js2)
+end
+
+fn test_linear() -> Text:
+    pure
+    input_vec = [1.0, 2.0, 3.0]
+    weights = [0.5, 0.5, 0.5]
+    bias = 1.0
+    out = omnisys.ai.linear(input_vec, weights, bias)
+    return "linear: " + omnisys.serde.json_encode(out)
+end
+
+fn test_softmax() -> Text:
+    pure
+    values = [2.0, 1.0, 0.1]
+    out = omnisys.ai.softmax(values)
+    return "softmax: " + omnisys.serde.json_encode(out)
+end
+
+fn test_predict() -> Text:
+    pure
+    # Simple 2-layer network: 3->4->2
+    layers = [
+        {weights: [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9], [1.0, 1.1, 1.2]], bias: 0.1},
+        {weights: [[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]], bias: 0.0}
+    ]
+    input_vec = [1.0, 0.5, -0.5]
+    out = omnisys.ai.predict(layers, input_vec)
+    return "predict: " + omnisys.serde.json_encode(out)
+end
+
+when app starts:
+    show test_tensor_creation()
+    show test_tensor_zeros()
+    show test_tensor_ones()
+    show test_tensor_add()
+    show test_tensor_scale()
+    show test_tensor_matmul()
+    show test_tensor_relu()
+    show test_tensor_sigmoid()
+    show test_tensor_sum()
+    show test_tensor_json_roundtrip()
+    show test_linear()
+    show test_softmax()
+    show test_predict()
+end

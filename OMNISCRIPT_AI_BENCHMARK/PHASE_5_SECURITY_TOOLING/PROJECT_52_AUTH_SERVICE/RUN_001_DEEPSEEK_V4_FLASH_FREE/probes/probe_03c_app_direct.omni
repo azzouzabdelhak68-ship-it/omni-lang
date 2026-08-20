@@ -1,0 +1,7 @@
+# Probe 3C: call omnisys.auth secrets fn DIRECTLY from app block -> expect E-EFFECT-003
+import OMNISYS.auth
+
+when app starts:
+    h = omnisys.auth.hash_password("pw", "salt")
+    show h
+end

@@ -1,0 +1,24 @@
+# Probe 2: effectful omnisys.tool / omnisys.fs + map literal variants
+import OMNISYS.tool
+import OMNISYS.fs
+
+fn run_tool_check(path: Text) -> Boolean:
+    uses process
+    res = omnisys.tool.check(path)
+    return res["ok"]
+end
+
+fn read_source(path: Text) -> Text:
+    uses filesystem
+    return omnisys.fs.read_file(path)
+end
+
+fn list_source_dir(path: Text) -> List:
+    uses filesystem
+    return omnisys.fs.list_dir(path)
+end
+
+when app starts:
+    ok = run_tool_check("source/project_inspector.omni")
+    show "check ok: " + ok
+end

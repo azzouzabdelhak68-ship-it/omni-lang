@@ -1,0 +1,334 @@
+# AI Assistant with Tensor Operations and Structured Output
+# Phase 6 Project 6.1 — Local AI Inference Assistant
+#
+# Implements a small neural network classifier for intent recognition,
+# produces structured output with confidence, and dispatches to tools.
+
+import OMNISYS.ai
+import OMNISYS.core
+import OMNISYS.serde
+import OMNISYS.collections
+
+# ---------------------------------------------------------------------------
+# TYPE DEFINITIONS
+# ---------------------------------------------------------------------------
+
+type IntentResult = {
+    action: Text,
+    confidence: Number,
+    reasoning: Text,
+    intent_index: Number
+}
+
+type ToolResult = {
+    action: Text,
+    success: Boolean,
+    output: Text
+}
+
+# ---------------------------------------------------------------------------
+# MODEL DEFINITION (hardcoded weights for a 4-class intent classifier)
+# Input: 8-dim feature vector -> Hidden: 16 -> Output: 4 (intents)
+# Intents: 0=GREETING, 1=QUERY_WEATHER, 2=QUERY_TIME, 3=CALCULATE, 4=UNKNOWN
+# ---------------------------------------------------------------------------
+
+fn create_model_layers() -> List:
+    pure
+    # Layer 1: 8 inputs -> 16 hidden (16 neurons, each with 8 weights + bias)
+    layer1_weights = [
+        [0.1, -0.2, 0.3, -0.1, 0.2, -0.3, 0.1, 0.0],
+        [-0.1, 0.2, -0.3, 0.1, -0.2, 0.3, -0.1, 0.0],
+        [0.2, 0.2, -0.1, -0.2, 0.1, 0.1, -0.2, 0.2],
+        [-0.2, -0.1, 0.2, 0.2, -0.1, -0.2, 0.1, -0.1],
+        [0.3, -0.1, 0.1, -0.2, 0.2, -0.1, 0.3, -0.2],
+        [-0.3, 0.3, -0.2, 0.1, -0.3, 0.2, -0.1, 0.3],
+        [0.1, 0.3, 0.2, -0.3, -0.1, 0.2, 0.1, -0.2],
+        [-0.2, -0.3, 0.1, 0.3, 0.2, -0.1, -0.3, 0.1],
+        [0.2, -0.2, 0.3, 0.1, -0.2, 0.3, -0.1, 0.2],
+        [-0.1, 0.1, -0.2, -0.3, 0.3, -0.2, 0.2, -0.3],
+        [0.3, 0.2, -0.1, 0.2, -0.3, 0.1, -0.2, 0.3],
+        [-0.3, -0.2, 0.3, -0.1, 0.1, -0.3, 0.2, -0.1],
+        [0.1, -0.3, 0.2, 0.2, -0.1, 0.1, 0.3, -0.2],
+        [-0.1, 0.2, -0.3, -0.2, 0.3, -0.1, -0.2, 0.3],
+        [0.2, 0.1, 0.3, -0.1, -0.2, 0.2, -0.3, 0.1],
+        [-0.2, 0.3, -0.1, 0.3, 0.1, -0.2, 0.1, -0.3]
+    ]
+    layer1_bias = 0.1
+
+    # Layer 2: 16 hidden -> 5 output (5 neurons, each with 16 weights + bias)
+    layer2_weights = [
+        [0.5, 0.1, -0.2, 0.1, 0.2, -0.1, 0.1, -0.2, 0.3, 0.1, -0.1, 0.2, -0.1, 0.1, 0.2, -0.1],
+        [-0.1, 0.5, 0.2, -0.1, -0.2, 0.3, -0.1, 0.2, -0.1, 0.3, 0.1, -0.2, 0.1, -0.1, -0.2, 0.3],
+        [0.2, -0.1, 0.5, 0.3, -0.1, -0.2, 0.2, 0.1, -0.3, -0.1, 0.2, 0.1, -0.2, 0.3, 0.1, -0.1],
+        [-0.2, 0.3, -0.1, 0.5, 0.1, 0.2, -0.3, 0.2, 0.1, -0.2, -0.1, 0.3, 0.2, -0.1, 0.3, 0.1],
+        [0.1, -0.2, 0.3, -0.1, 0.5, 0.1, -0.2, 0.3, -0.1, 0.2, 0.3, -0.1, 0.1, 0.2, -0.3, 0.2]
+    ]
+    layer2_bias = 0.0
+
+    return [
+        {weights: layer1_weights, bias: layer1_bias},
+        {weights: layer2_weights, bias: layer2_bias}
+    ]
+end
+
+# ---------------------------------------------------------------------------
+# FEATURE EXTRACTION (simulated — in real use would be text embedding)
+# ---------------------------------------------------------------------------
+
+fn extract_features(input_text: Text) -> List:
+    pure
+    # Simple hash-based feature extraction for demo
+    # Produces 8 features in [-1, 1] range
+    length = omnisys.core.length(input_text)
+    features = []
+    i = 0
+    while i < 8:
+        # Use character codes to generate pseudo-features
+        char_idx = i % length
+        c = omnisys.core.char_at(input_text, char_idx)
+        code = omnisys.core.to_number(c)
+        # Normalize to [-1, 1] using sin-like pattern
+        val = (code % 200) / 100.0 - 1.0
+        features = omnisys.collections.list_push(features, val)
+        i = i + 1
+    end
+    return features
+end
+
+# ---------------------------------------------------------------------------
+# INFERENCE PIPELINE
+# ---------------------------------------------------------------------------
+
+fn run_inference(input_features: List) -> List:
+    pure
+    layers = create_model_layers()
+    return omnisys.ai.predict(layers, input_features)
+end
+
+fn softmax_probs(logits: List) -> List:
+    pure
+    return omnisys.ai.softmax(logits)
+end
+
+fn argmax(values: List) -> Number:
+    pure
+    max_val = values[0]
+    max_idx = 0
+    i = 1
+    len_v = omnisys.core.length(values)
+    while i < len_v:
+        if values[i] > max_val:
+            max_val = values[i]
+            max_idx = i
+        end
+        i = i + 1
+    end
+    return max_idx
+end
+
+fn max_value(values: List) -> Number:
+    pure
+    max_val = values[0]
+    i = 1
+    len_v = omnisys.core.length(values)
+    while i < len_v:
+        if values[i] > max_val:
+            max_val = values[i]
+        end
+        i = i + 1
+    end
+    return max_val
+end
+
+# ---------------------------------------------------------------------------
+# STRUCTURED OUTPUT FORMATTING
+# ---------------------------------------------------------------------------
+
+fn intent_to_action(intent_idx: Number) -> Text:
+    pure
+    if intent_idx is 0:
+        return "GREETING"
+    end
+    if intent_idx is 1:
+        return "QUERY_WEATHER"
+    end
+    if intent_idx is 2:
+        return "QUERY_TIME"
+    end
+    if intent_idx is 3:
+        return "CALCULATE"
+    end
+    return "UNKNOWN"
+end
+
+fn format_intent_result(intent_idx: Number, confidence: Number, logits: List) -> Map:
+    pure
+    action = intent_to_action(intent_idx)
+    reasoning = "Classified as " + action + " with logit " + omnisys.serde.json_encode(logits[intent_idx])
+    return {
+        action: action,
+        confidence: confidence,
+        reasoning: reasoning,
+        intent_index: intent_idx
+    }
+end
+
+fn classify_intent(input_text: Text) -> Map:
+    pure
+    features = extract_features(input_text)
+    logits = run_inference(features)
+    probs = softmax_probs(logits)
+    idx = argmax(probs)
+    conf = max_value(probs)
+    return format_intent_result(idx, conf, logits)
+end
+
+# ---------------------------------------------------------------------------
+# TOOL IMPLEMENTATIONS
+# ---------------------------------------------------------------------------
+
+fn tool_greeting(params: Map) -> Map:
+    pure
+    name = params["name"]
+    if omnisys.core.is_empty(name):
+        name = "User"
+    end
+    return {action: "GREETING", success: true, output: "Hello, " + name + "! How can I help you today?"}
+end
+
+fn tool_weather(params: Map) -> Map:
+    pure
+    location = params["location"]
+    if omnisys.core.is_empty(location):
+        location = "your area"
+    end
+    return {action: "QUERY_WEATHER", success: true, output: "The weather in " + location + " is sunny, 72°F."}
+end
+
+fn tool_time(params: Map) -> Map:
+    pure
+    return {action: "QUERY_TIME", success: true, output: "The current time is 14:30 UTC."}
+end
+
+fn tool_calculate(params: Map) -> Map:
+    pure
+    expr = params["expression"]
+    if omnisys.core.is_empty(expr):
+        expr = "0"
+    end
+    # Simple eval simulation — in real use would be a proper expression parser
+    calc_res = "42"  # placeholder
+    return {action: "CALCULATE", success: true, output: "Result: " + calc_res}
+end
+
+fn tool_unknown(params: Map) -> Map:
+    pure
+    return {action: "UNKNOWN", success: false, output: "I'm not sure how to help with that. Try asking about weather, time, or calculations."}
+end
+
+fn dispatch_tool(intent_result: Map) -> Map:
+    pure
+    action = intent_result["action"]
+    params = {}  # empty params for demo
+    if action is "GREETING":
+        return tool_greeting(params)
+    end
+    if action is "QUERY_WEATHER":
+        return tool_weather(params)
+    end
+    if action is "QUERY_TIME":
+        return tool_time(params)
+    end
+    if action is "CALCULATE":
+        return tool_calculate(params)
+    end
+    return tool_unknown(params)
+end
+
+# ---------------------------------------------------------------------------
+# TENSOR OPERATIONS DEMO (showcasing tensor capabilities)
+# ---------------------------------------------------------------------------
+
+fn demo_tensor_ops() -> Text:
+    pure
+    # Create tensors
+    a = omnisys.ai.tensor([2, 3], [1, 2, 3, 4, 5, 6])
+    b = omnisys.ai.tensor([3, 2], [1, 2, 3, 4, 5, 6])
+    # Matmul: [2,3] x [3,2] -> [2,2]
+    c = omnisys.ai.tensor_matmul(a, b)
+    # Add bias
+    bias = omnisys.ai.tensor([2, 2], [0.1, 0.1, 0.1, 0.1])
+    d = omnisys.ai.tensor_add(c, bias)
+    # ReLU activation
+    e = omnisys.ai.tensor_relu(d)
+    # Convert to JSON for output
+    js = omnisys.ai.tensor_to_json(e)
+    return omnisys.serde.json_encode(js)
+end
+
+fn demo_tensor_serialization() -> Text:
+    pure
+    t = omnisys.ai.tensor([2, 2], [1.5, 2.5, 3.5, 4.5])
+    js = omnisys.ai.tensor_to_json(t)
+    t2 = omnisys.ai.tensor_from_json(js)
+    js2 = omnisys.ai.tensor_to_json(t2)
+    match = omnisys.serde.json_encode(js) is omnisys.serde.json_encode(js2)
+    status = "FAIL"
+    if match:
+        status = "PASS"
+    end
+    return "Serialization round-trip: " + status + " — " + js2
+end
+
+# ---------------------------------------------------------------------------
+# MAIN ASSISTANT ENTRY POINT
+# ---------------------------------------------------------------------------
+
+fn process_input(input_text: Text) -> Map:
+    pure
+    intent = classify_intent(input_text)
+    tool_result = dispatch_tool(intent)
+    return {
+        input: input_text,
+        intent: intent,
+        tool_result: tool_result
+    }
+end
+
+# ---------------------------------------------------------------------------
+# APP BLOCK
+# ---------------------------------------------------------------------------
+
+when app starts:
+    show "=== AI Assistant Demo ==="
+    show ""
+
+    # Demo tensor operations
+    show "--- Tensor Operations ---"
+    show "Matmul + Bias + ReLU: " + demo_tensor_ops()
+    show "Serialization: " + demo_tensor_serialization()
+    show ""
+
+    # Demo classification on sample inputs
+    show "--- Intent Classification ---"
+    test_inputs = [
+        "Hello there!",
+        "What's the weather like?",
+        "What time is it?",
+        "Calculate 2 + 2",
+        "Random nonsense input"
+    ]
+
+    for app_input in test_inputs:
+        app_res = process_input(app_input)
+        app_intent = app_res["intent"]
+        app_tool = app_res["tool_result"]
+        show "Input: " + app_input
+        show "  Intent: " + app_intent["action"] + " (confidence: " + omnisys.serde.json_encode(app_intent["confidence"]) + ")"
+        show "  Reasoning: " + app_intent["reasoning"]
+        show "  Tool Output: " + app_tool["output"]
+        show ""
+    end
+
+    show "=== Demo Complete ==="
+end

@@ -1,0 +1,267 @@
+# Secure File Vault — Project 5.1
+# Encrypts file contents with a passphrase-derived key, signs entries with an
+# HMAC, verifies integrity on read, and enforces an unlocked-vault policy.
+#
+# Design notes:
+#  * Key derivation (kdf), encryption, decryption, salt generation -> `uses secrets`.
+#  * Vault file I/O (read/write/delete/list/mkdir)       -> `uses filesystem`.
+#  * Hashing / HMAC / constant-time comparison helpers    -> `pure`.
+#  * Module-level vault state (vault_dir, vault_key, vault_open, ...) is read
+#    and written only through explicitly declared `reads`/`writes` clauses.
+#  * All capability-using logic lives in named functions; `when app starts`
+#    only calls those functions (the app block cannot declare capabilities).
+
+import OMNISYS.core
+import OMNISYS.crypto
+import OMNISYS.fs
+import OMNISYS.collections
+
+# ---------------------------------------------------------------------------
+# KEY DERIVATION & SALT
+# ---------------------------------------------------------------------------
+
+fn derive_storage_key(passphrase: Text, salt: Text, iterations: Number) -> Text:
+    uses secrets
+    return omnisys.crypto.kdf(passphrase, salt, iterations)
+end
+
+fn make_salt() -> Text:
+    uses secrets
+    return omnisys.crypto.random_bytes(16)
+end
+
+# ---------------------------------------------------------------------------
+# INTEGRITY PRIMITIVES (pure)
+# ---------------------------------------------------------------------------
+
+fn entry_hash(iv: Text, cipher: Text) -> Text:
+    pure
+    return omnisys.crypto.sha256(iv + "|" + cipher)
+end
+
+fn entry_mac(key: Text, iv: Text, cipher: Text) -> Text:
+    pure
+    return omnisys.crypto.hmac(key, iv + "|" + cipher)
+end
+
+fn mac_is_valid(key: Text, iv: Text, cipher: Text, expected: Text) -> Boolean:
+    pure
+    return omnisys.crypto.constant_time_eq(entry_mac(key, iv, cipher), expected)
+end
+
+fn encode_entry(iv: Text, cipher: Text, digest: Text, mac: Text) -> Text:
+    pure
+    return "IV:" + iv + "\n" + "HASH:" + digest + "\n" + "MAC:" + mac + "\n" + "CIPHER:" + cipher
+end
+
+fn parse_field(content: Text, field: Text) -> Text:
+    pure
+    lines = omnisys.core.split(content, "\n")
+    for line in lines:
+        parts = omnisys.core.split(line, ":")
+        if omnisys.core.length(parts) greater or equal 2:
+            if parts[0] is field:
+                return parts[1]
+            end
+        end
+    end
+    return ""
+end
+
+# ---------------------------------------------------------------------------
+# VAULT STATE (module-level, guarded by reads/writes declarations)
+# ---------------------------------------------------------------------------
+
+fn vault_unlock(passphrase: Text) -> Text:
+    uses secrets
+    uses filesystem
+    reads vault_dir
+    reads vault_iters
+    reads vault_salt
+    writes vault_salt
+    writes vault_key
+    writes vault_open
+    omnisys.fs.make_dir(vault_dir)
+    cfg = omnisys.fs.join_path(vault_dir, "vault.cfg")
+    if omnisys.fs.file_exists(cfg):
+        content = omnisys.fs.read_file(cfg)
+        salt = parse_field(content, "SALT")
+        passcheck = parse_field(content, "PASS")
+        if omnisys.core.is_empty(salt) or omnisys.core.is_empty(passcheck):
+            return "ERROR: CFG_CORRUPT"
+        end
+        vault_salt = salt
+        key = derive_storage_key(passphrase, vault_salt, vault_iters)
+        if not omnisys.crypto.constant_time_eq(omnisys.crypto.hmac(key, "vault-check"), passcheck):
+            return "ERROR: WRONG_PASSPHRASE"
+        end
+        vault_key = key
+        vault_open = true
+        return "OK: VAULT_UNLOCKED"
+    else:
+        salt = make_salt()
+        vault_salt = salt
+        key = derive_storage_key(passphrase, vault_salt, vault_iters)
+        passcheck = omnisys.crypto.hmac(key, "vault-check")
+        omnisys.fs.write_file(cfg, "SALT:" + salt + "\n" + "PASS:" + passcheck)
+        vault_key = key
+        vault_open = true
+        return "OK: VAULT_CREATED_AND_UNLOCKED"
+    end
+end
+
+fn vault_lock() -> Text:
+    writes vault_key
+    writes vault_open
+    vault_key = ""
+    vault_open = false
+    return "OK: VAULT_LOCKED"
+end
+
+fn vault_status() -> Text:
+    reads vault_open
+    if vault_open:
+        return "OK: UNLOCKED"
+    end
+    return "OK: LOCKED"
+end
+
+# ---------------------------------------------------------------------------
+# VAULT OPERATIONS
+# ---------------------------------------------------------------------------
+
+fn vault_store(entry_name: Text, plaintext: Text) -> Text:
+    uses secrets
+    uses filesystem
+    reads vault_dir
+    reads vault_open
+    reads vault_key
+    if not vault_open:
+        return "ERROR: VAULT_LOCKED"
+    end
+    if omnisys.core.is_empty(entry_name):
+        return "ERROR: EMPTY_NAME"
+    end
+    enc = omnisys.crypto.encrypt_aes(vault_key, plaintext)
+    iv = enc["iv"]
+    cipher = enc["data"]
+    digest = entry_hash(iv, cipher)
+    mac = entry_mac(vault_key, iv, cipher)
+    path = omnisys.fs.join_path(vault_dir, entry_name)
+    omnisys.fs.write_file(path, encode_entry(iv, cipher, digest, mac))
+    return "OK: STORED " + entry_name
+end
+
+fn vault_retrieve(entry_name: Text) -> Text:
+    uses secrets
+    uses filesystem
+    reads vault_dir
+    reads vault_open
+    reads vault_key
+    if not vault_open:
+        return "ERROR: VAULT_LOCKED"
+    end
+    path = omnisys.fs.join_path(vault_dir, entry_name)
+    if not omnisys.fs.file_exists(path):
+        return "ERROR: NOT_FOUND"
+    end
+    content = omnisys.fs.read_file(path)
+    iv = parse_field(content, "IV")
+    digest = parse_field(content, "HASH")
+    mac = parse_field(content, "MAC")
+    cipher = parse_field(content, "CIPHER")
+    if not mac_is_valid(vault_key, iv, cipher, mac):
+        return "ERROR: TAMPER_DETECTED"
+    end
+    if not (entry_hash(iv, cipher) is digest):
+        return "ERROR: TAMPER_DETECTED"
+    end
+    cipher_map = {tag: "cipher", iv: iv, data: cipher}
+    plain = omnisys.crypto.decrypt_aes(cipher_map, vault_key)
+    return "OK: " + plain
+end
+
+fn vault_list() -> Text:
+    uses filesystem
+    reads vault_dir
+    reads vault_open
+    if not vault_open:
+        return "ERROR: VAULT_LOCKED"
+    end
+    names = omnisys.fs.list_dir(vault_dir)
+    entries = []
+    for name in names:
+        if name is not "vault.cfg" and name is not "demo.done":
+            entries = omnisys.collections.list_push(entries, name)
+        end
+    end
+    out = omnisys.collections.list_join(entries, ", ")
+    return "OK: " + out
+end
+
+fn vault_delete(entry_name: Text) -> Text:
+    uses filesystem
+    reads vault_dir
+    reads vault_open
+    if not vault_open:
+        return "ERROR: VAULT_LOCKED"
+    end
+    path = omnisys.fs.join_path(vault_dir, entry_name)
+    if not omnisys.fs.file_exists(path):
+        return "ERROR: NOT_FOUND"
+    end
+    omnisys.fs.delete_file(path)
+    return "OK: DELETED " + entry_name
+end
+
+# ---------------------------------------------------------------------------
+# DEMO PHASE MARKER (enables a two-phase runtime test: store, then verify)
+# ---------------------------------------------------------------------------
+
+fn demo_mark_stored() -> Text:
+    uses filesystem
+    reads vault_dir
+    marker = omnisys.fs.join_path(vault_dir, "demo.done")
+    if omnisys.fs.file_exists(marker):
+        return "verify"
+    end
+    omnisys.fs.write_file(marker, "done")
+    return "store"
+end
+
+# ---------------------------------------------------------------------------
+# ENTRY POINT
+# ---------------------------------------------------------------------------
+
+when app starts:
+    vault_dir = "vault_data"
+    vault_iters = 1000
+    vault_salt = ""
+    vault_key = ""
+    vault_open = false
+
+    show "=== Secure File Vault Demo ==="
+    show "STATUS: " + vault_status()
+    show vault_unlock("correct horse battery staple")
+    show "STATUS: " + vault_status()
+
+    phase = demo_mark_stored()
+    show "PHASE: " + phase
+
+    if phase is "store":
+        show vault_store("secrets.txt", "The combination is 4 8 15 16 23 42")
+        show vault_store("notes.txt", "Second encrypted note")
+        show "RETRIEVE secrets.txt = " + vault_retrieve("secrets.txt")
+        show "RETRIEVE missing.txt = " + vault_retrieve("missing.txt")
+        show "LIST = " + vault_list()
+        show vault_delete("notes.txt")
+        show "LIST = " + vault_list()
+    else:
+        show "RETRIEVE secrets.txt = " + vault_retrieve("secrets.txt")
+    end
+
+    show vault_lock()
+    show "STATUS: " + vault_status()
+    show "RETRIEVE secrets.txt = " + vault_retrieve("secrets.txt")
+    show "=== Demo Complete ==="
+end

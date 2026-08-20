@@ -1,0 +1,21 @@
+# Probe 3: map literal syntax variants (error-focused probe)
+import OMNISYS.collections
+
+fn build_map() -> Map:
+    pure
+    m = {}
+    m["a"] = 1
+    return m
+end
+
+fn build_map2() -> Map:
+    pure
+    m = omnisys.collections.map_set({}, "a", 1)
+    return m
+end
+
+when app starts:
+    x = build_map()
+    y = build_map2()
+    show "done"
+end

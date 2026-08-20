@@ -1,0 +1,64 @@
+# Probe 4: iterate snapshot logs/traces, nested map index chains, to_number
+import OMNISYS.core
+import OMNISYS.collections
+import OMNISYS.observability
+
+fn count_error_logs() -> Number:
+    pure
+    snap = omnisys.observability.snapshot()
+    logs = omnisys.collections.map_get(snap, "logs")
+    n = 0
+    for entry in logs:
+        if entry["level"] is "error":
+            n = n + 1
+        end
+    end
+    return n
+end
+
+fn first_error_message() -> Text:
+    pure
+    snap = omnisys.observability.snapshot()
+    logs = omnisys.collections.map_get(snap, "logs")
+    msg = ""
+    for entry in logs:
+        if entry["level"] is "error":
+            msg = entry["message"]
+        end
+    end
+    return msg
+end
+
+fn failed_trace_count() -> Number:
+    pure
+    snap = omnisys.observability.snapshot()
+    traces = omnisys.collections.map_get(snap, "traces")
+    n = 0
+    for tr in traces:
+        if tr["fields"]["ok"] is false:
+            n = n + 1
+        end
+    end
+    return n
+end
+
+fn extract_priority(msg: Text) -> Number:
+    pure
+    parts = omnisys.core.split(msg, " ")
+    return omnisys.core.to_number(parts[2])
+end
+
+when app starts:
+    omnisys.observability.clear()
+    omnisys.observability.metric("rejected_total", 2)
+    omnisys.observability.error("REJECTED priority 3", {"task": "t-3"})
+    omnisys.observability.error("REJECTED priority 4", {"task": "t-4"})
+    t1 = omnisys.observability.trace_begin("dispatch:t-3")
+    omnisys.observability.trace_end(t1, {"ok": false, "reason": "priority_gate"})
+
+    show "error logs: " + count_error_logs()
+    show "first msg: " + first_error_message()
+    show "failed traces: " + failed_trace_count()
+    show "extracted priority: " + extract_priority("REJECTED priority 3")
+    show "task field: " + "REJECTED priority 3"
+end

@@ -1,0 +1,41 @@
+# Probe 2 — filesystem I/O wrapped in named functions
+import OMNISYS.fs
+import OMNISYS.core
+import OMNISYS.collections
+
+fn setup_vault(dir: Text) -> Text:
+    uses filesystem
+    omnisys.fs.make_dir(dir)
+    return "OK"
+end
+
+fn write_entry(dir: Text, name: Text, content: Text) -> Text:
+    uses filesystem
+    path = omnisys.fs.join_path(dir, name)
+    omnisys.fs.write_file(path, content)
+    return "OK"
+end
+
+fn read_entry(dir: Text, name: Text) -> Text:
+    uses filesystem
+    path = omnisys.fs.join_path(dir, name)
+    if not omnisys.fs.file_exists(path):
+        return "ERROR: NOT_FOUND"
+    end
+    return omnisys.fs.read_file(path)
+end
+
+fn list_entries(dir: Text) -> Text:
+    uses filesystem
+    names = omnisys.fs.list_dir(dir)
+    return omnisys.collections.list_join(names, ",")
+end
+
+when app starts:
+    show setup_vault("probe_vault_dir")
+    show write_entry("probe_vault_dir", "alpha.txt", "secret alpha")
+    show write_entry("probe_vault_dir", "beta.txt", "secret beta")
+    show read_entry("probe_vault_dir", "alpha.txt")
+    show read_entry("probe_vault_dir", "missing.txt")
+    show list_entries("probe_vault_dir")
+end

@@ -55,12 +55,13 @@
     const server = registry[target.host];
     if (target.scheme === "inproc" && server) {
       const net = omnisys.net;
-      return net.request(server, method, target.path, body === undefined || body === null ? "" : String(body));
+      const result = net.request(server, method, target.path, body === undefined || body === null ? "" : String(body));
+      return Promise.resolve(result);
     }
     if (typeof http.__transport === "function") {
       return http.__transport(method, url, body, timeout);
     }
-    core.panic("http: no transport for scheme '" + target.scheme + "' (register an inproc:// server or set http.__transport)");
+    return Promise.reject(new Error("http: no transport for scheme '" + target.scheme + "' (register an inproc:// server or set http.__transport)"));
   };
 
   http.json_get = function (url, timeout) {

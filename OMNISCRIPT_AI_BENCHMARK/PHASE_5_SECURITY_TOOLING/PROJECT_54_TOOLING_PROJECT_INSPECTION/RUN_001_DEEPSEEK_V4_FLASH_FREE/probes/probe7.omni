@@ -1,0 +1,111 @@
+# Probe 7: extraction logic + nested report map + json_encode
+import OMNISYS.core
+import OMNISYS.tool
+import OMNISYS.collections
+import OMNISYS.serde
+
+fn lstrip(line: Text) -> Text:
+    pure
+    idx = 0
+    n = omnisys.core.length(line)
+    while idx < n:
+        ch = omnisys.core.char_at(line, idx)
+        if ch is " ":
+            idx = idx + 1
+        else:
+            break
+        end
+    end
+    return omnisys.core.substring(line, idx, n)
+end
+
+fn starts_with(line: Text, prefix: Text) -> Boolean:
+    pure
+    plen = omnisys.core.length(prefix)
+    llen = omnisys.core.length(line)
+    if llen < plen:
+        return false
+    end
+    return omnisys.core.substring(line, 0, plen) is prefix
+end
+
+fn extract_fn_name(line: Text) -> Text:
+    pure
+    rest = omnisys.core.substring(line, 3, omnisys.core.length(line))
+    idx = 0
+    n = omnisys.core.length(rest)
+    while idx < n:
+        ch = omnisys.core.char_at(rest, idx)
+        if ch is "(":
+            break
+        end
+        idx = idx + 1
+    end
+    return omnisys.core.substring(rest, 0, idx)
+end
+
+fn extract_functions(text: Text) -> List:
+    pure
+    lines = omnisys.core.split(text, "\n")
+    out = []
+    for line in lines:
+        clean = lstrip(line)
+        if starts_with(clean, "fn "):
+            out = omnisys.collections.list_push(out, extract_fn_name(clean))
+        end
+    end
+    return out
+end
+
+fn extract_capabilities(text: Text) -> List:
+    pure
+    lines = omnisys.core.split(text, "\n")
+    out = []
+    for line in lines:
+        clean = lstrip(line)
+        if starts_with(clean, "uses "):
+            cap = omnisys.core.substring(clean, 5, omnisys.core.length(clean))
+            out = omnisys.collections.list_push(out, cap)
+        else:
+            if clean is "pure":
+                out = omnisys.collections.list_push(out, "pure")
+            end
+        end
+    end
+    return out
+end
+
+fn extract_imports(text: Text) -> List:
+    pure
+    lines = omnisys.core.split(text, "\n")
+    out = []
+    for line in lines:
+        clean = lstrip(line)
+        if starts_with(clean, "import "):
+            mod = omnisys.core.substring(clean, 7, omnisys.core.length(clean))
+            out = omnisys.collections.list_push(out, mod)
+        end
+    end
+    return out
+end
+
+fn inspect_source_text(text: Text) -> Map:
+    pure
+    report = omnisys.collections.map_set({}, "lines", omnisys.tool.line_count(text))
+    report = omnisys.collections.map_set(report, "tokens", omnisys.core.length(omnisys.tool.tokenize(text)))
+    report = omnisys.collections.map_set(report, "identifiers", omnisys.tool.identifier_count(text))
+    report = omnisys.collections.map_set(report, "functions", extract_functions(text))
+    report = omnisys.collections.map_set(report, "capabilities", extract_capabilities(text))
+    report = omnisys.collections.map_set(report, "imports", extract_imports(text))
+    return report
+end
+
+when app starts:
+    app_sample = "fn hello(a: Number) -> Number:\n    pure\n    return a\nend\nimport OMNISYS.core\n"
+    app_report = inspect_source_text(app_sample)
+    app_json = omnisys.serde.json_encode(app_report)
+    show "report: " + app_json
+    app_names = omnisys.collections.map_get(app_report, "functions")
+    app_first = omnisys.collections.list_get(app_names, 0)
+    show "first fn: " + app_first
+end

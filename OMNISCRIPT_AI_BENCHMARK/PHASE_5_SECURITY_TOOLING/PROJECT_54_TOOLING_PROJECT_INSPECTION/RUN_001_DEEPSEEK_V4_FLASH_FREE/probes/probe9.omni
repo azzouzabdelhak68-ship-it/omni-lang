@@ -1,0 +1,17 @@
+# Probe 9: map index in condition + nested function calls
+import OMNISYS.collections
+
+fn pick(flag_map: Map) -> Text:
+    pure
+    if flag_map["ok"]:
+        return "yes"
+    else:
+        return "no"
+    end
+end
+
+when app starts:
+    app_m = omnisys.collections.map_set({}, "ok", true)
+    app_res = pick(app_m)
+    show "picked: " + app_res
+end

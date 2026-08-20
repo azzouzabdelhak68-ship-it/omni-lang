@@ -1,0 +1,21 @@
+# Probe 5b: try/on error catching panics (runtime robustness)
+import OMNISYS.tool
+import OMNISYS.collections
+
+fn safe_check(path: Text) -> Map:
+    uses process
+    out = omnisys.collections.map_set({}, "ok", false)
+    try:
+        check_result = omnisys.tool.check(path)
+        out = omnisys.collections.map_set(out, "ok", check_result["ok"])
+    on error:
+        out = omnisys.collections.map_set(out, "reason", "cli-unavailable")
+    end
+    return out
+end
+
+when app starts:
+    check_outcome = safe_check("probes/probe5b.omni")
+    show "ok: " + check_outcome["ok"]
+    show "reason: " + check_outcome["reason"]
+end

@@ -1,0 +1,43 @@
+# Probe 4: full auth token flow + expiry via claims
+import OMNISYS.auth
+import OMNISYS.collections
+import OMNISYS.core
+import OMNISYS.platform
+import OMNISYS.serde
+
+fn issue_token(secret: Text, subject: Text, role: Text, ttl: Number) -> Text:
+    uses secrets
+    exp = (omnisys.platform.now() / 1000) + ttl
+    claims = {role: role, exp: exp}
+    return omnisys.auth.token(subject, claims, secret)
+end
+
+fn check_token(secret: Text, token: Text) -> Text:
+    uses secrets
+    res = omnisys.auth.verify_token(token, secret)
+    valid = omnisys.collections.map_get(res, "valid")
+    if valid is true:
+        claims = omnisys.collections.map_get(res, "claims")
+        sub = omnisys.collections.map_get(claims, "sub")
+        exp = omnisys.collections.map_get(claims, "exp")
+        now_s = omnisys.platform.now() / 1000
+        if now_s greater than exp:
+            return "ERROR: expired"
+        end
+        return "OK: " + sub
+    end
+    return "ERROR: invalid"
+end
+
+when app starts:
+    secret = "super-secret-key"
+    good = issue_token(secret, "alice", "admin", 3600)
+    show "token: " + good
+    v1 = check_token(secret, good)
+    show "verify good: " + v1
+    stale = issue_token(secret, "bob", "user", -30)
+    v2 = check_token(secret, stale)
+    show "verify stale: " + v2
+    v3 = check_token(secret, "tampered.token")
+    show "verify bad: " + v3
+end

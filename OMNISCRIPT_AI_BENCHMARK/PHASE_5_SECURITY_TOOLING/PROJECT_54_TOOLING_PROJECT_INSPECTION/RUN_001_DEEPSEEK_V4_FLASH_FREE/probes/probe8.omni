@@ -1,0 +1,22 @@
+# Probe 8: else if chaining
+import OMNISYS.core
+
+fn classify(kind: Text) -> Text:
+    pure
+    if kind is "a":
+        return "alpha"
+    else if kind is "b":
+        return "beta"
+    else:
+        return "other"
+    end
+end
+
+when app starts:
+    app_a = classify("a")
+    app_b = classify("b")
+    app_c = classify("z")
+    show app_a
+    show app_b
+    show app_c
+end
