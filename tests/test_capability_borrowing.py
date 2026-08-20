@@ -31,6 +31,7 @@ def _analyze(code: str):
 
 # ---- Parser ----
 
+
 def test_parser_borrows_clause_simple():
     ast = _parse(
         """
@@ -75,6 +76,7 @@ end
 
 
 # ---- Checker: valid borrowing ----
+
 
 def test_borrowed_cap_exercised_in_body_passes():
     _analyze(
@@ -157,6 +159,7 @@ end
 
 
 # ---- Checker: violations ----
+
 
 def test_pure_with_borrows_error():
     with pytest.raises(DiagnosticError) as excinfo:
@@ -242,6 +245,7 @@ end
 
 # ---- Symbol table ----
 
+
 def test_symbol_table_declares_borrows():
     _, table = _analyze(
         """
@@ -257,6 +261,7 @@ end
 
 
 # ---- MIR ----
+
 
 def test_mir_build_preserves_borrows():
     ast, table = _analyze(
@@ -288,6 +293,7 @@ end
 
 
 # ---- Emitters ----
+
 
 def test_js_emitter_accepts_borrows():
     ast, table = _analyze(

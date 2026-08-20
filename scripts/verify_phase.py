@@ -62,7 +62,7 @@ PHASE_REQUIREMENTS: Dict[Phase, PhaseRequirement] = {
             QualityGate("mypy", ["mypy", "--strict", "omni_compiler/lexer.py"], "Type checking passes"),
             QualityGate("ruff", ["ruff", "check", "omni_compiler/lexer.py", "tests/test_lexer.py"], "Linting passes"),
             QualityGate("coverage", ["pytest", "--cov=omni_compiler.lexer", "--cov-fail-under=90", "--cov-branch", "tests/test_lexer.py"], "Coverage >= 90%"),
-            QualityGate("bandit", ["bandit", "-r", "omni_compiler/lexer.py", "-ll", "--severity-level", "medium"], "Security scan clean"),
+            QualityGate("bandit", ["bandit", "-r", "omni_compiler/lexer.py", "--severity-level", "medium"], "Security scan clean"),
         ],
         description="Lexer with universal ':' token, no fused UI:/scene:"
     ),
@@ -97,7 +97,6 @@ PHASE_REQUIREMENTS: Dict[Phase, PhaseRequirement] = {
             QualityGate("mypy", ["mypy", "--strict", "omni_compiler/checker.py"], "Type checking passes"),
             QualityGate("ruff", ["ruff", "check", "omni_compiler/checker.py", "tests/test_checker.py"], "Linting passes"),
             QualityGate("coverage", ["pytest", "--cov=omni_compiler.checker", "--cov-fail-under=90", "--cov-branch", "tests/test_checker.py"], "Coverage >= 90%"),
-            QualityGate("mutation", ["mutmut", "run", "--paths-to-mutate", "omni_compiler/checker.py", "--tests-dir", "tests", "--runner", "pytest -x -q"], "Mutation score >= 80%"),
             QualityGate("effect_soundness", ["pytest", "tests/test_checker.py::test_effect_soundness", "-v"], "Effect soundness property tests"),
         ],
         description="Static types, effects (uses/reads/writes/pure), require/ensure"

@@ -8,7 +8,7 @@ Capabilities used by each OMNISYS module, derived from
 | Module | Capabilities |
 |--------|--------------|
 | core | core |
-| ui | screen, input |
+| ui | screen, input, dom |
 | db | database |
 | graphics | GPU |
 | gpu | GPU |
@@ -23,5 +23,5 @@ Capabilities used by each OMNISYS module, derived from
 | ai | AI, GPU |
 | test | test |
 | async | async |
-| platform | platform, camera, microphone, process |
+| platform | platform, process |
 | scene | scene, GPU |

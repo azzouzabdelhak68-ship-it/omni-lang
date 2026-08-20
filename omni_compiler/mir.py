@@ -113,7 +113,7 @@ class MIRModule:
             },
             indent=2,
         )
-    
+
     @classmethod
     def from_json(cls, json_str: str) -> 'MIRModule':
         """Deserialize an MIRModule from a JSON string."""

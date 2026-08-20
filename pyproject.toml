@@ -76,11 +76,10 @@ line-ending = "auto"
 skip-magic-trailing-comma = false
 
 [tool.mutmut]
-runner = "pytest"
-paths_to_mutate = ["omni_compiler"]
+source_paths = ["omni_compiler"]
 backup = false
-runner_options = ["-x", "--tb=short"]
-tests_dir = "tests/"
+pytest_add_cli_args = ["-x", "--tb=short"]
+pytest_add_cli_args_test_selection = ["tests/"]
 
 [tool.coverage.run]
 branch = true
