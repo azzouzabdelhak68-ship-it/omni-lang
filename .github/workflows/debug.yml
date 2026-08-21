@@ -1,0 +1,38 @@
+name: Debug CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Debug environment
+        run: |
+          python --version
+          pip --version
+          echo "Python path: $(which python)"
+          echo "PIP path: $(which pip)"
+      - name: Install deps
+        run: |
+          pip install -e ".[dev]"
+      - name: Run ruff
+        run: ruff check omni_compiler/ tests/ --exit-non-zero-on-fix
+      - name: Run ruff format
+        run: ruff format --check omni_compiler/ tests/
+      - name: Run mypy
+        run: mypy --strict omni_compiler/ --show-error-codes
+      - name: Run bandit
+        run: bandit -r omni_compiler --severity-level medium
+      - name: Run verify-docs
+        run: python scripts/verify-docs.py
+      - name: Run gen-index check
+        run: python scripts/gen-index.py --check
+      - name: Run gen-capability-matrix check
+        run: python scripts/gen-capability-matrix.py --check
