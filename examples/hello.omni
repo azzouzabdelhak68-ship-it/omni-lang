@@ -1,0 +1,19 @@
+# Hello OmniScript: your first .omni program.
+# Every function declares its effect set. `pure` means no side effects:
+# if this body touched the network or files, the compiler would reject it.
+
+fn greet(name: Text) -> Text:
+    pure
+    return "Hello, {name}! OmniScript compiled you."
+end
+
+when app starts:
+    message = greet("world")
+    show message
+end
+
+UI:
+<div class="card">
+    <h1>{message}</h1>
+</div>
+end

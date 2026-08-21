@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, smoke-test, and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Smoke-test the wheel in a clean environment
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python -m venv "${RUNNER_TEMP}/smoke"
+          SMOKE="${RUNNER_TEMP}/smoke/bin"
+          "${SMOKE}/python" -m pip install dist/*.whl
+          "${SMOKE}/omni" --version
+          "${SMOKE}/omni" check examples/hello.omni
+          "${SMOKE}/omni" build examples/hello.omni --target js
+          test -f examples/hello.html
+          echo "Wheel installs and compiles hello.omni: OK (${TAG})"
+
+      - name: Write release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          INSTALL_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/omni_compiler-${VERSION}-py3-none-any.whl"
+          {
+            echo "Download the wheel, install it, write one \`.omni\` file, run it."
+            echo
+            echo "## Install (Python 3.11+)"
+            echo
+            echo '```bash'
+            echo "pip install ${INSTALL_URL}"
+            echo '```'
+            echo
+            echo "No source build required. The wheel was installed and smoke-tested in a clean environment before this release was published."
+            echo
+            echo "## Your first program"
+            echo
+            echo 'Save as `hello.omni`:'
+            echo
+            echo '```text'
+            cat examples/hello.omni
+            echo '```'
+            echo
+            echo "## Check, build, run"
+            echo
+            echo '```bash'
+            echo 'omni check hello.omni              # static checking: types, effects, contracts'
+            echo 'omni build hello.omni --target js  # code generation via OMNI MIR -> hello.html'
+            echo 'omni run hello.omni                # execute under Node.js'
+            echo '```'
+            echo
+            echo '```text'
+            echo 'Hello, world! OmniScript compiled you.'
+            echo '```'
+            echo
+            echo "New here? Start with [the getting-started tutorial](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/getting-started.md), then read [the spec](https://github.com/${GITHUB_REPOSITORY}/blob/main/OMNI_SPEC.md)."
+          } > RELEASE_NOTES.md
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: true
