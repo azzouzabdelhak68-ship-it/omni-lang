@@ -140,7 +140,16 @@ def _js_text(raw: str) -> str:
             buf.append(body[i])
             i += 1
     if buf:
-        parts.append('"' + ''.join(buf) + '"')
+        # Escape for JS string literal: backslash, quote, and control chars
+        escaped = (
+            ''.join(buf)
+            .replace('\\', '\\\\')
+            .replace('"', '\\"')
+            .replace('\n', '\\n')
+            .replace('\r', '\\r')
+            .replace('\t', '\\t')
+        )
+        parts.append('"' + escaped + '"')
     if not parts:
         return '""'
     return ' + '.join(parts)

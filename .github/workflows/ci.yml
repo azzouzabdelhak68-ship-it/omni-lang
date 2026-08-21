@@ -51,11 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: lint-and-typecheck
-    # Report-only for now: 1 known flaky test (test_self_hosted) and
-    # coverage gate at 90% is tight (90.10% locally). Re-enforce by
-    # removing continue-on-error once the flaky test is fixed and
-    # coverage is stabilized above 90%.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,7 +69,6 @@ jobs:
       - name: Run Tests with Coverage
         run: |
           pytest tests/ -v --tb=short --tb=native \
-            -k "not test_generated_program_runs_and_prints_result" \
             --cov=omni_compiler --cov-branch --cov-fail-under=90 \
             --cov-report=xml --cov-report=term-missing
 
@@ -90,10 +84,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: lint-and-typecheck
-    # Report-only for now: registry drift causes 1 known failure
-    # (test_registry_effects_are_none) across packages. Re-enforce by
-    # removing continue-on-error once the drift is resolved.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -133,10 +123,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [test, test-packages]
-    # Report-only for now: the mutation score gate has never been validated
-    # on a baseline run. Re-enforce by removing continue-on-error once the
-    # score is proven to pass.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -178,9 +164,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [test, test-packages]
-    # Report-only for now: conformance suite has not been validated on CI.
-    # Re-enforce by removing continue-on-error once it passes.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -190,6 +173,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install dependencies
         run: |

@@ -9,8 +9,11 @@ def test_registry_functions_are_callable_public_attributes() -> None:
 
 
 def test_registry_functions_are_pure() -> None:
-    for function in OMNISYS_MODULES['serde'].functions.values():
-        assert function.effects == frozenset()
+    for name, function in OMNISYS_MODULES['serde'].functions.items():
+        if name in {'json_decode', 'base64_decode'}:
+            assert function.effects == frozenset({'panic'})
+        else:
+            assert function.effects == frozenset()
 
 
 def test_no_unexpected_public_callables() -> None:

@@ -21,4 +21,7 @@ def test_no_unexpected_public_functions() -> None:
 
 def test_registry_effects_are_none() -> None:
     for name, fn in _REGISTRY.items():
-        assert not fn.effects, f'core.{name} unexpectedly declares effects {fn.effects}'
+        if name == 'panic':
+            assert fn.effects == frozenset({'panic'}), f'core.{name} effects {fn.effects}'
+        else:
+            assert not fn.effects, f'core.{name} unexpectedly declares effects {fn.effects}'

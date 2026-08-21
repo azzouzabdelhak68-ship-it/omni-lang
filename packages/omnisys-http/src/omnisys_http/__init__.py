@@ -26,6 +26,8 @@ __all__ = [
     'json_post',
     'redirect',
     'not_found',
+    'response',
+    'response_json',
     'register',
     'register_transport',
 ]
@@ -89,6 +91,16 @@ def redirect(location: str, status: int | None) -> Response:
 def not_found(body: str) -> Response:
     """Build a 404 response with ``body``."""
     return {'status': 404, 'headers': {}, 'body': str(body)}
+
+
+def response(status: int, body: Any) -> Response:  # noqa: ANN401
+    """Build a generic response with ``status`` and ``body``."""
+    return {'status': status, 'headers': {}, 'body': str(body)}
+
+
+def response_json(status: int, value: Any) -> Response:  # noqa: ANN401
+    """Build a JSON response with ``status`` and JSON-serialized ``value``."""
+    return {'status': status, 'headers': {'content-type': 'application/json'}, 'body': json.dumps(value)}
 
 
 def register(name: str, server: Server) -> Server:

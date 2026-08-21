@@ -860,6 +860,15 @@ class Parser:
                     raw = text_tok.value
                     is_quoted = len(raw) >= 2 and raw[0] in ('"', "'")  # noqa: PLR2004
                     body = raw[1:-1] if is_quoted else raw
+                    if is_quoted:
+                        body = (
+                            body.replace('\\"', '"')
+                            .replace("\\'", "'")
+                            .replace('\\\\', '\\')
+                            .replace('\\n', '\n')
+                            .replace('\\r', '\r')
+                            .replace('\\t', '\t')
+                        )
                     attrs[name] = Literal(value_type='Text', value=body)
                 elif self.match(TokenType.NUMBER):
                     num_tok = self.consume(TokenType.NUMBER)
@@ -987,7 +996,14 @@ class Parser:
                 or (text_val[0] == "'" and text_val[-1] == "'")
             ):
                 text_val = text_val[1:-1]
-                text_val = text_val.replace('\\"', '"').replace("\\'", "'").replace('\\\\', '\\')
+                text_val = (
+                    text_val.replace('\\"', '"')
+                    .replace("\\'", "'")
+                    .replace('\\\\', '\\')
+                    .replace('\\n', '\n')
+                    .replace('\\r', '\r')
+                    .replace('\\t', '\t')
+                )
             return self._mark(Literal(value_type='Text', value=text_val), t)
         if t.type == TokenType.TRUE:
             self.consume()

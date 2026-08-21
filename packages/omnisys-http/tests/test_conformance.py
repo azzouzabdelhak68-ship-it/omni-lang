@@ -5,7 +5,7 @@ import omnisys_http
 from omni_compiler.omnisys_registry import OMNISYS_MODULES
 
 _ALLOWED_EXTRA = {'register', 'register_transport'}
-_IMPURE = {'client', 'send', 'get', 'post', 'put', 'delete', 'json_get', 'json_post'}
+_IMPURE = {'send', 'get', 'post', 'put', 'delete', 'json_get', 'json_post'}
 
 
 def test_every_registry_function_is_exported() -> None:

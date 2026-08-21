@@ -5,7 +5,7 @@ import omnisys_gpu
 from omni_compiler.omnisys_registry import OMNISYS_MODULES
 
 _ALLOWED_EXTRA = frozenset()
-_IMPURE = {'compute', 'parallel', 'add', 'scale', 'dot', 'matmul', 'normalize', 'device_info'}
+_IMPURE = {'compute', 'parallel', 'add', 'scale', 'dot', 'matmul', 'normalize', 'device_info', 'buffer'}
 
 
 def test_every_registry_function_is_exported() -> None:
