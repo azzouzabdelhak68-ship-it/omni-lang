@@ -1,5 +1,6 @@
 <div align="center" style="background: linear-gradient(135deg, #0b0b14 0%, #1a0b2e 100%); padding: 40px; border-radius: 16px; border: 1px solid rgba(168,85,247,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
 
+
 # 🌌 OmniScript
 <h3 style="color: #f472b6; font-weight: 700; letter-spacing: 2px; margin-top: 5px;">THE AI-FIRST PROGRAMMING LANGUAGE</h3>
 
@@ -204,6 +205,8 @@ end
 <p style="color: #94a3b8; font-size: 13px; margin-top: 8px;">Built with ❤️ by the OmniScript Community.</p>
 
 </div>
-#   C I   d e b u g   t r i g g e r  
-    
+#   C I   d e b u g   t r i g g e r 
+ 
+   
+ 
  
