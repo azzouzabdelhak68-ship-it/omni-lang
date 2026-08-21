@@ -18,6 +18,10 @@ One <code style="color: #e879f9; background: #2e1065; padding: 2px 6px; border-r
   <img src="https://github.com/azzouzabdelhak68-ship-it/omni-lang/actions/workflows/docs.yml/badge.svg" alt="Docs Status" />
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License" />
   <img src="https://img.shields.io/badge/Python-3.11%2B-blue.svg" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/coverage-90%25-brightgreen.svg" alt="Coverage 90%+" />
+  <img src="https://img.shields.io/badge/mutation%20score-80%25-brightgreen.svg" alt="Mutation Score 80%+" />
+  <img src="https://img.shields.io/pypi/v/omni-compiler.svg" alt="PyPI Version" />
+  <img src="https://img.shields.io/badge/code%20style-ruff-000000.svg" alt="Code Style: Ruff" />
 </p>
 
 </div>
@@ -201,4 +205,5 @@ end
 
 </div>
 #   C I   d e b u g   t r i g g e r  
+    
  
