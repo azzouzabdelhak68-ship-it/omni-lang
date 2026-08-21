@@ -146,7 +146,9 @@ console.log(compile_program(prog));
         assert 'total = add(1, 2);' in out
         assert 'console.log(total);' in out
 
-    @pytest.mark.xfail(reason="flaky on Windows, passes on Linux CI - needs investigation", strict=False)
+    @pytest.mark.xfail(  # noqa: E501
+        reason='flaky on Windows - needs investigation', strict=False
+    )
     @needs_node
     def test_generated_program_runs_and_prints_result(self) -> None:
         node_src = (
