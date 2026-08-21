@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Actions are pinned to full commit SHAs in .github/workflows/.
+  # Dependabot keeps them current by updating to the SHA of new releases.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      pip:
+        patterns: ["*"]

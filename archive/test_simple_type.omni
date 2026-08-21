@@ -1,0 +1,9 @@
+import OMNISYS.core
+
+type SimpleType = {
+    flag: Boolean,
+}
+
+when app starts:
+    show "hello"
+end

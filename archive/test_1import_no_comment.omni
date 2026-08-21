@@ -1,0 +1,12 @@
+import OMNISYS.core
+
+type SystemInfo = {
+    os: Text,
+    arch: Text,
+    env: Text,
+    capabilities_available: Boolean,
+}
+
+when app starts:
+    show "hello"
+end

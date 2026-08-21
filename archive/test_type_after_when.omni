@@ -1,0 +1,10 @@
+# Test with type declaration AFTER when app starts
+
+when app starts:
+    show "hello"
+end
+
+type P1 = {
+    x: Number,
+    y: Number,
+}

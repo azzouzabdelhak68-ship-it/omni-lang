@@ -1,0 +1,22 @@
+import OMNISYS.core
+
+type SimpleType = {
+    flag: Boolean,
+    value: Number
+}
+
+fn make_simple(flag: Boolean, value: Number) -> SimpleType:
+    pure
+    return SimpleType(flag=flag, value=value)
+end
+
+fn get_flag(s: SimpleType) -> Boolean:
+    pure
+    return s.flag
+end
+
+when app starts:
+    s = make_simple(true, 42)
+    flag = get_flag(s)
+    show flag
+end

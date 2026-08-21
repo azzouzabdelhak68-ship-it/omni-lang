@@ -1,0 +1,11 @@
+# Test: type declarations then imports then when app starts
+
+import OMNISYS.core
+import OMNISYS.collections
+
+type NetRequest = { method: Text, path: Text, body: Text }
+type NetResponse = { status: Number, body: Text }
+
+when app starts:
+    show "chat_server.omni loaded"
+end

@@ -1,0 +1,8 @@
+type Person = {
+    name: Text,
+    age: Number,
+}
+
+when app starts:
+    show "hello"
+end

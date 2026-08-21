@@ -1,0 +1,9 @@
+# Test: type declarations then minimal imports then when app starts
+
+import OMNISYS.core
+
+type NetRequest = { method: Text, path: Text, body: Text }
+
+when app starts:
+    show "hello"
+end

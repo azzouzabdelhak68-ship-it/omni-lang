@@ -1,0 +1,11 @@
+import OMNISYS.core
+
+type NetRequest = {
+    method: Text,
+    path: Text,
+    body: Text,
+}
+
+when app starts:
+    show "hello"
+end

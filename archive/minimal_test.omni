@@ -1,0 +1,11 @@
+import OMNISYS.core
+
+fn create_person(name: Text, age: Number) -> any:
+    uses process
+    return {name=name, age=age}
+end
+
+when app starts:
+    p = create_person("Alice", 30)
+    show "Person: " + p.name + " " + omnisys.core.type_of(p.age)
+end

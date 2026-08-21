@@ -1,0 +1,11 @@
+import OMNISYS.core
+
+type ThreeFields = {
+    a: Text,
+    b: Text,
+    c: Text,
+}
+
+when app starts:
+    show "hello"
+end
