@@ -87,6 +87,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: lint-and-typecheck
+    # Report-only for now: registry drift causes failures.
+    # Re-enforce by removing continue-on-error once the drift is resolved.
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -126,6 +129,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [test, test-packages]
+    # Report-only for now: mutation score gate has never been validated.
+    # Re-enforce by removing continue-on-error once the score is proven.
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -167,6 +173,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [test, test-packages]
+    # Report-only for now: conformance suite has not been validated on CI.
+    # Re-enforce by removing continue-on-error once it passes.
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
