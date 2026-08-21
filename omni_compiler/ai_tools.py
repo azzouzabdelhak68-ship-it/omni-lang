@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from omni_compiler.checker import DiagnosticError, SymbolTable, analyze
+from omni_compiler.checker import SymbolTable, analyze
+from omni_compiler.compiler_util import _diagnostic_from_exception
 from omni_compiler.parser import (
     Assignment,
     BinaryExpr,
@@ -48,69 +49,20 @@ _BINARY_OPS: dict[str, Any] = {
     'or': lambda left, right: bool(left) or bool(right),
 }
 
-
-def _diagnostic_from_exception(e: Exception) -> dict[str, Any]:
-    if isinstance(e, DiagnosticError):
-        return e.to_dict()
-    if isinstance(e, SyntaxError):
-        msg = str(e)
-        return {
-            'schema': 'omni.diagnostic',
-            'version': '1.0',
-            'code': 'E-SYNTAX-001',
-            'category': 'syntax',
-            'severity': 'error',
-            'message': 'Syntax error.',
-            'details': msg,
-            'span': {'start': 0, 'end': 0},
-            'location': {'line': 1, 'column': 1},
-            'context': {},
-            'fixes': [
-                {
-                    'id': 'fix-syntax',
-                    'kind': 'replace_span',
-                    'applicability': 'suggested',
-                    'description': 'Fix the reported syntax issue.',
-                    'edit': {'operation': 'replace', 'span': {'start': 0, 'end': 0}, 'text': ''},
-                }
-            ],
-        }
-    if isinstance(e, NameError):
-        msg = str(e)
-        return {
-            'schema': 'omni.diagnostic',
-            'version': '1.0',
-            'code': 'E-NAME-001',
-            'category': 'name',
-            'severity': 'error',
-            'message': msg,
-            'details': msg,
-            'span': {'start': 0, 'end': 0},
-            'location': {'line': 1, 'column': 1},
-            'context': {},
-            'fixes': [
-                {
-                    'id': 'define-name',
-                    'kind': 'suggested',
-                    'applicability': 'suggested',
-                    'description': 'Define the missing name or check the spelling.',
-                    'edit': {'operation': 'insert', 'span': {'start': 0, 'end': 0}, 'text': ''},
-                }
-            ],
-        }
-    return {
-        'schema': 'omni.diagnostic',
-        'version': '1.0',
-        'code': 'E-INTERNAL-001',
-        'category': 'internal',
-        'severity': 'error',
-        'message': str(e),
-        'details': f'{type(e).__name__}: {e}',
-        'span': {'start': 0, 'end': 0},
-        'location': {'line': 1, 'column': 1},
-        'context': {},
-        'fixes': [],
-    }
+_BINARY_OP_IMPLS: dict[str, str] = {
+    '+': 'left + right',
+    '-': 'left - right',
+    '*': 'left * right',
+    '/': 'left / right',
+    'is': 'left == right',
+    'is not': 'left != right',
+    'greater than': 'left > right',
+    'less than': 'left < right',
+    'greater or equal': 'left >= right',
+    'less or equal': 'left <= right',
+    'and': 'bool(left) and bool(right)',
+    'or': 'bool(left) or bool(right)',
+}
 
 
 def _augment_fix(
@@ -265,68 +217,65 @@ def _find_function(prog: Program, function_name: str) -> FunctionDef:
     raise ValueError(f'unknown function {function_name!r}')
 
 
-_EMBEDDED_HELPERS = """
-def _eval_expr(expr, env):
-    if isinstance(expr, Literal):
-        return expr.value
-    if isinstance(expr, Identifier):
-        if expr.name not in env:
-            raise KeyError(expr.name)
-        return env[expr.name]
-    if isinstance(expr, FunctionCall):
-        if expr.name == "join":
-            return ""
-        raise ValueError("unsupported function call: " + expr.name)
-    if isinstance(expr, BinaryExpr):
-        left = _eval_expr(expr.left, env)
-        right = _eval_expr(expr.right, env)
-        op = expr.op
-        if op == "+":
-            return left + right
-        if op == "-":
-            return left - right
-        if op == "*":
-            return left * right
-        if op == "/":
-            return left / right
-        if op == "is":
-            return left == right
-        if op == "is not":
-            return left != right
-        if op == "greater than":
-            return left > right
-        if op == "less than":
-            return left < right
-        if op == "greater or equal":
-            return left >= right
-        if op == "less or equal":
-            return left <= right
-        if op == "and":
-            return bool(left) and bool(right)
-        if op == "or":
-            return bool(left) or bool(right)
-        raise ValueError("unsupported operator: " + op)
-    if isinstance(expr, GroupExpr):
-        return _eval_expr(expr.expr, env)
-    if isinstance(expr, UnaryExpr):
-        value = _eval_expr(expr.operand, env)
-        if expr.op == "not":
-            return not bool(value)
-        if expr.op == "neg":
-            return -value
-        raise ValueError("unsupported unary operator: " + expr.op)
-    raise ValueError("unsupported expression node: " + type(expr).__name__)
+def _gen_embedded_eval_expr() -> list[str]:
+    lines = [
+        'def _eval_expr(expr, env):',
+        '    if isinstance(expr, Literal):',
+        '        return expr.value',
+        '    if isinstance(expr, Identifier):',
+        '        if expr.name not in env:',
+        '            raise KeyError(expr.name)',
+        '        return env[expr.name]',
+        '    if isinstance(expr, FunctionCall):',
+        '        if expr.name == "join":',
+        '            return ""',
+        '        raise ValueError("unsupported function call: " + expr.name)',
+        '    if isinstance(expr, BinaryExpr):',
+        '        left = _eval_expr(expr.left, env)',
+        '        right = _eval_expr(expr.right, env)',
+        '        op = expr.op',
+    ]
+    for op, impl in _BINARY_OP_IMPLS.items():
+        lines.append(f'        if op == {op!r}:')
+        lines.append(f'            return {impl}')
+    lines.extend(
+        [
+            '        raise ValueError("unsupported operator: " + op)',
+            '    if isinstance(expr, GroupExpr):',
+            '        return _eval_expr(expr.expr, env)',
+            '    if isinstance(expr, UnaryExpr):',
+            '        value = _eval_expr(expr.operand, env)',
+            '        if expr.op == "not":',
+            '            return not bool(value)',
+            '        if expr.op == "neg":',
+            '            return -value',
+            '        raise ValueError("unsupported unary operator: " + expr.op)',
+            '    raise ValueError("unsupported expression node: " + type(expr).__name__)',
+        ]
+    )
+    return lines
 
 
-def _check_contracts(fn, env):
-    for req in fn.requires:
-        try:
-            if not _eval_expr(req, env):
-                return False
-        except (KeyError, ValueError, TypeError):
-            pass
-    return True
-"""
+def _gen_embedded_helpers() -> str:
+    lines = _gen_embedded_eval_expr()
+    lines.extend(
+        [
+            '',
+            '',
+            'def _check_contracts(fn, env):',
+            '    for req in fn.requires:',
+            '        try:',
+            '            if not _eval_expr(req, env):',
+            '                return False',
+            '        except (KeyError, ValueError, TypeError):',
+            '            pass',
+            '    return True',
+        ]
+    )
+    return '\n' + '\n'.join(lines)
+
+
+_EMBEDDED_HELPERS = _gen_embedded_helpers()
 
 
 def _find_valid_sample(fn: FunctionDef, requires: list[Any]) -> dict[str, Any] | None:

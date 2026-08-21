@@ -28,6 +28,7 @@ def _get_c_emitter() -> Callable[[Any], str]:
     global _c_emitter  # noqa: PLW0603
     if _c_emitter is None:
         from omni_compiler.c_emitter import emit_c as _emit_c  # noqa: PLC0415
+
         _c_emitter = _emit_c
     return _c_emitter
 
@@ -41,6 +42,7 @@ def _get_wasm_emitter() -> tuple[Callable[..., str], Callable[[str], str]]:
         from omni_compiler.wasm_emitter import (  # noqa: PLC0415
             wasm_build_command as _wasm_build_command,
         )
+
         _wasm_emitter = (_emit_wasm, _wasm_build_command)
     return _wasm_emitter
 
@@ -54,6 +56,7 @@ def _get_formatter() -> tuple[type, Callable[..., Any]]:
         from omni_compiler.formatter import (  # noqa: PLC0415
             format_file as _format_file,
         )
+
         _formatter = (_FormatConfig, _format_file)
     return _formatter
 
