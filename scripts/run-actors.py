@@ -28,7 +28,7 @@ from omni_compiler.lexer import tokenize  # noqa: E402
 from omni_compiler.mir import to_mir  # noqa: E402
 from omni_compiler.parser import parse  # noqa: E402
 
-_HARNESS = _HERE / "run-actors.js"
+_HARNESS = _HERE / 'run-actors.js'
 
 
 def compile_actors_html(source: str) -> str:
@@ -43,12 +43,12 @@ def compile_actors_html(source: str) -> str:
 def run_actors(
     source: str,
     *,
-    node: str = "node",
+    node: str = 'node',
     timeout: float = 30.0,
 ) -> subprocess.CompletedProcess[str]:
     """Compile ``source`` and run it under Node; return the subprocess result."""
     html = compile_actors_html(source)
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", encoding="utf-8", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.html', encoding='utf-8', delete=False) as f:
         f.write(html)
         html_path = Path(f.name)
     try:
@@ -67,21 +67,21 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point: compile and run one .omni actor program."""
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) != 1:
-        print("usage: python scripts/run-actors.py <file.omni>", file=sys.stderr)  # noqa: T201
+        print('usage: python scripts/run-actors.py <file.omni>', file=sys.stderr)  # noqa: T201
         return 2
-    if shutil.which("node") is None:
+    if shutil.which('node') is None:
         print("run-actors: 'node' is required but was not found on PATH", file=sys.stderr)  # noqa: T201
         return 3
     omni_file = Path(args[0])
     try:
-        source = omni_file.read_text(encoding="utf-8")
+        source = omni_file.read_text(encoding='utf-8')
     except OSError as exc:
-        print(f"run-actors: cannot read {omni_file}: {exc}", file=sys.stderr)  # noqa: T201
+        print(f'run-actors: cannot read {omni_file}: {exc}', file=sys.stderr)  # noqa: T201
         return 1
     try:
         proc = run_actors(source)
     except Exception as exc:  # compile error
-        print(f"run-actors: compile failed for {omni_file.name}: {exc}", file=sys.stderr)  # noqa: T201
+        print(f'run-actors: compile failed for {omni_file.name}: {exc}', file=sys.stderr)  # noqa: T201
         return 1
     if proc.stdout:
         sys.stdout.write(proc.stdout)
@@ -90,5 +90,5 @@ def main(argv: list[str] | None = None) -> int:
     return proc.returncode
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sys.exit(main())
